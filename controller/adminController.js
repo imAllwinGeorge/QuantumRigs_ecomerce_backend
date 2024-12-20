@@ -1,0 +1,269 @@
+const User = require("../model/userSchema");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Category = require("../model/categorySchema");
+const SubCategory = require("../model/subCategories");
+require("dotenv").config();
+const secretKey = process.env.JWT_SCRET;
+
+const login = async (req, res) => {
+  console.log(req.body);
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    } else {
+      if (user.isAdmin) {
+        bcrypt.compare(password, user.password, (err, data) => {
+          if (data) {
+            const token = jwt.sign({ id: user._id }, secretKey, {
+              expiresIn: "30d",
+            });
+
+            res.cookie("token", token, {
+              httpOnly: true,
+              maxAge: 30 * 24 * 60 * 60 * 1000,
+              secure: false,
+              sameSite: "lax",
+            });
+            console.log("admin signin succefull");
+            return res.status(200).json({
+              message: "Login successful",
+              id: user._id,
+              name: user.firstName,
+              email: user.email,
+              phone: user.phone,
+            });
+          } else {
+            return res.status(404).json({ message: "password incorrect" });
+          }
+        });
+      } else {
+        return res.status(401).json({ message: "Unauthorized access request" });
+      }
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getUserdata = async (req, res) => {
+  try {
+    const users = await User.find();
+    if (users) {
+      console.log(users);
+      return res.status(200).json(users);
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const blockUser = async (req, res) => {
+  const { userId } = req.body;
+
+  const user = await User.findByIdAndUpdate(
+    { _id: userId },
+    { isBlocked: true },
+    { new: true }
+  );
+
+  if (user) {
+    return res.status(200).json(user);
+  }
+};
+
+const unBlockUser = async (req, res) => {
+  const { userId } = req.body;
+
+  const user = await User.findByIdAndUpdate(
+    { _id: userId },
+    { isBlocked: false },
+    { new: true }
+  );
+
+  if (user) {
+    return res.status(200).json(user);
+  }
+};
+
+const getCategories = async (req, res) => {
+  try {
+    const categories = await Category.find();
+    return res.status(200).json({ categories });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const addSubCategory = async (req, res) => {
+  const {
+    subCategory,
+    description,
+    subCategoryOffer,
+    subCategoryOfferType,
+    categoryId,
+  } = req.body;
+  console.log(categoryId);
+  try {
+    const isExist = await SubCategory.findOne({ subCategory });
+    if (isExist) {
+      return res.status(409).json("user already exist");
+    }
+    await SubCategory.create({
+      subCategory,
+      description,
+      subCategoryOffer,
+      subCategoryOfferType,
+      categoryId,
+    });
+    return res.status(201).json("sub-Category created successfull");
+  } catch (error) {
+    console.log("addsubcategory", error);
+  }
+};
+
+const getSubCategories = async (req, res) => {
+  const { categoryId } = req.body;
+  console.log(categoryId);
+  try {
+    const subCategories = await SubCategory.find({ categoryId });
+    if (subCategories) {
+      return res.status(200).json({ subCategories });
+    }
+    return res.status(404).json("sub category not found");
+  } catch (error) {
+    console.log("getsubcategories", error);
+  }
+};
+
+const addCategory = async (req, res) => {
+  const { category, description } = req.body;
+  try {
+    const cat = await Category.findOne({ category });
+    if (cat) {
+      return res.status(409).json("category already exist");
+    }
+    await Category.create({
+      category,
+      description,
+    });
+
+    return res.status(201).json("category added successful");
+  } catch (error) {
+    console.log(",,,,,,,,,,,", error);
+  }
+};
+
+const editCategory = async (req, res) => {
+  try {
+    const { categoryId, category, description } = req.body;
+
+    const isExist = await Category.findOne({
+      category,
+      _id: { $ne: categoryId },
+    });
+    console.log(isExist, "editcategory");
+    if (!isExist) {
+      const editedCategory = await Category.findByIdAndUpdate(
+        { _id: categoryId },
+        { category, description },
+        { new: true }
+      );
+      return res.status(200).json(editedCategory);
+    }
+    return res.status(404).json("something went wrong");
+  } catch (error) {
+    console.log("editCategory", error);
+  }
+};
+
+const toggleCategoryListing = async (req, res) => {
+  try {
+    const { categoryId } = req.body;
+    console.log("toggle");
+    const category = await Category.findByIdAndUpdate(
+      { _id: categoryId },
+      [{ $set: { isListed: { $not: "$isListed" } } }],
+      { new: true }
+    );
+    console.log(category);
+    if (category) {
+      return res.status(200).json(category);
+    }
+    res.status(404).json("category not found");
+  } catch (error) {
+    return res.status(500).json("internal server error");
+  }
+};
+
+const subCatogoryToggle = async (req, res) => {
+  try {
+    const { subCategoryId } = req.body;
+    const subCategory = await SubCategory.findByIdAndUpdate(
+      { _id: subCategoryId },
+      [{ $set: { isListed: { $not: "$isListed" } } }],
+      { new: true }
+    );
+    console.log(subCategory);
+    if (subCategory) {
+      return res.status(200).json(subCategory);
+    }
+    return res.status(404).json("Sub-Category not found");
+  } catch (error) {
+    console.log("subCatogoryToggle", error);
+  }
+};
+
+const editsubcategory = async (req, res) => {
+  try {
+    const {
+      _id,
+      subCategory,
+      subCategoryOffer,
+      subCategoryOfferType,
+      selectedCategory,
+    } = req.body;
+    const isExist = await SubCategory.findOne({ subCategory, _id:{$ne:_id},categoryId:selectedCategory });
+    console.log(isExist);
+    if (!isExist) {
+      const updatedSubCategory = await SubCategory.findByIdAndUpdate(
+        { _id },
+        { subCategory, subCategoryOffer, subCategoryOfferType },
+        { new: true }
+      );
+      
+      return res.status(200).json(updatedSubCategory);
+    }
+
+    return res.status(404).json("subCategories should be unique");
+  } catch (error) {
+    console.log("editing subcategory", error);
+  }
+};
+
+const logout = (req, res) => {
+  console.log(req.session.cookie);
+  req.session.destroy(() => {
+    return res.status(200).json({ message: "logout successfull" });
+  });
+};
+
+module.exports = {
+  login,
+  logout,
+  getUserdata,
+  blockUser,
+  unBlockUser,
+  getCategories,
+  addCategory,
+  editCategory,
+  toggleCategoryListing,
+  getSubCategories,
+  addSubCategory,
+  subCatogoryToggle,
+  editsubcategory,
+};
