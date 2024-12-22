@@ -43,6 +43,12 @@ route.get('/getproductdetails',productController.getProductDetails)
 
 route.get('/moreprodctdetails/:productId',productController.moreProdctDetails)
 
+route.delete('/deleteimage',productController.deleteImage)
+
+route.put('/editproduct',productController.editProduct)
+
+route.put('/updateVariant/:variantId',productController.updateVariant)
+
 route.get('/logout',adminController.logout)
 
 module.exports = route

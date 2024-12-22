@@ -246,9 +246,16 @@ const editsubcategory = async (req, res) => {
 };
 
 const logout = (req, res) => {
-  console.log(req.session.cookie);
-  req.session.destroy(() => {
-    return res.status(200).json({ message: "logout successfull" });
+  // console.log(req.session.cookie);
+  // req.session.destroy(() => {
+  //   return res.status(200).json({ message: "logout successfull" });
+  // });
+
+  res.cookie("auth_token", "", {   // Use the same name as your cookie
+    httpOnly: true,                 // Keep HttpOnly flag
+    secure: process.env.NODE_ENV === "production", // Set secure flag for production (HTTPS)
+    expires: new Date(0),          // Set expiry to the past
+    sameSite: "strict"              // Optional: to prevent CSRF in certain contexts
   });
 };
 
