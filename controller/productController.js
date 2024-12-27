@@ -22,7 +22,7 @@ const getProductPage = async (req, res) => {
 const getProductDetails = async (req, res) => {
   try {
     const product = await Product.find();
-    console.log(product);
+    
     return res.status(200).json(product);
   } catch (error) {
     console.log("getProductdetailse", error);
@@ -155,40 +155,83 @@ const deleteImage = async (req, res) => {
   }
 };
 
-const editProduct = async (req, res) =>{
-    try {
-        console.log(req.body)
-        const {productInfo} = req.body;
-        console.log(productInfo,'11111111111111')
-        const updatedProduct = await Product.findByIdAndUpdate(productInfo._id,{$set:{...productInfo}},{new:true});
-        
-        console.log(updatedProduct,'qwertyuio')
-        if(updatedProduct ){
-            console.log('success')
-            return res.status(200).json('product updated successfully')
-        }
-        return res.status(404).json('prduct doesnot found')
-    } catch (error) {
-        
+const editProduct = async (req, res) => {
+  try {
+    console.log('Edit products API triggered');
+    
+    // Extract fields from request body
+    const {
+      _id,
+      productName,
+      description,
+      brandId,
+      subCategoryId,
+      productOffer,
+      productOfferType,
+      isListed
+    } = req.body;
+    console.log(req.body)
+    console.log('editproducctsssssssssssssrsrs',productName,description,brandId,subCategoryId,productOffer,productOfferType,isListed)
+
+    // Ensure files are processed
+    const newImages = req.files ? req.files.map(file => file.filename) : [];
+
+    // Fetch the current product from the database
+    const product = await Product.findById(_id);
+
+    if (!product) {
+      return res.status(404).json("Product not found");
     }
-}
 
-const updateVariant = async (req,res) =>{
-    try {
-        
-        const {variantToUpdate} = req.body
-        const variantId = req.params.variantId
-        const updatedVaraint = await Variant.findByIdAndUpdate(variantId,{$set:{...variantToUpdate}},{new:true})
-        if(updatedVaraint){
-            return res.status(200).json('variant updated successfully')
-        }
-        return res.status(404).json('varaint not found')
+    // Combine existing images with new images
+    const updatedImages = [...product.images, ...newImages];
 
-    } catch (error) {
-        console.log('updatevariant',error)
+    // Prepare updated data
+    const updateData = {
+      productName,
+      description,
+      brandId,
+      subCategoryId,
+      productOffer,
+      productOfferType,
+      isListed: isListed === 'true', // Convert to boolean
+      images: updatedImages // Append new images
+    };
+    const updatedProduct = await Product.findByIdAndUpdate(
+      _id,
+      { $set: updateData },
+      { new: true }
+    );
+
+
+    console.log(updatedProduct, "qwertyuio");
+    if (updatedProduct) {
+      console.log("success");
+      return res.status(200).json("product updated successfully");
     }
-}
+    return res.status(404).json("prduct doesnot found");
+  } catch (error) {
+    console.log("edit product",error)
+  }
+};
 
+const updateVariant = async (req, res) => {
+  try {
+    const { variantToUpdate } = req.body;
+    const variantId = req.params.variantId;
+    const updatedVaraint = await Variant.findByIdAndUpdate(
+      variantId,
+      { $set: { ...variantToUpdate } },
+      { new: true }
+    );
+    if (updatedVaraint) {
+      return res.status(200).json("variant updated successfully");
+    }
+    return res.status(404).json("varaint not found");
+  } catch (error) {
+    console.log("updatevariant", error);
+  }
+};
 
 module.exports = {
   getProductPage,
@@ -200,6 +243,5 @@ module.exports = {
   moreProdctDetails,
   deleteImage,
   editProduct,
-  updateVariant
-  
+  updateVariant,
 };

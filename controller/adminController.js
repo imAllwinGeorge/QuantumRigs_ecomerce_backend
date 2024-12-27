@@ -6,6 +6,56 @@ const SubCategory = require("../model/subCategories");
 require("dotenv").config();
 const secretKey = process.env.JWT_SCRET;
 
+const verifyToken = async (req, res) => {
+  try {
+    const token = req.cookies.token
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'No token provided' 
+      });
+    }
+
+    // Using promisified version of jwt.verify for better error handling
+    try {
+      const decoded = await new Promise((resolve, reject) => {
+        jwt.verify(token, process.env.JWT_SCRET, (err, decoded) => {
+          if (err) reject(err);
+          resolve(decoded);
+        });
+      });
+
+      console.log('Token verified for user:', decoded);
+      
+      // Attach the decoded user info to the request object for use in subsequent middleware
+      req.admin = decoded;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Token verified',
+        user: decoded // Optionally return user info if needed by frontend
+      });
+
+    } catch (jwtError) {
+      console.log('JWT verification failed:', jwtError);
+      return res.status(401).json({
+        success: false,
+        message: jwtError.name === 'TokenExpiredError' 
+          ? 'Token has expired' 
+          : 'Invalid token'
+      });
+    }
+
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error during token verification'
+    });
+  }
+};
+
 const login = async (req, res) => {
   console.log(req.body);
   try {
@@ -14,7 +64,7 @@ const login = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      return res.status(404).json("user not found" );
     } else {
       if (user.isAdmin) {
         bcrypt.compare(password, user.password, (err, data) => {
@@ -29,6 +79,7 @@ const login = async (req, res) => {
               secure: false,
               sameSite: "lax",
             });
+
             console.log("admin signin succefull");
             return res.status(200).json({
               message: "Login successful",
@@ -38,15 +89,16 @@ const login = async (req, res) => {
               phone: user.phone,
             });
           } else {
-            return res.status(404).json({ message: "password incorrect" });
+            return res.status(404).json("password incorrect" );
           }
         });
       } else {
-        return res.status(401).json({ message: "Unauthorized access request" });
+        return res.status(401).json("Unauthorized access request" );
       }
     }
   } catch (error) {
     console.log(error);
+
   }
 };
 
@@ -227,7 +279,11 @@ const editsubcategory = async (req, res) => {
       subCategoryOfferType,
       selectedCategory,
     } = req.body;
-    const isExist = await SubCategory.findOne({ subCategory, _id:{$ne:_id},categoryId:selectedCategory });
+    const isExist = await SubCategory.findOne({
+      subCategory,
+      _id: { $ne: _id },
+      categoryId: selectedCategory,
+    });
     console.log(isExist);
     if (!isExist) {
       const updatedSubCategory = await SubCategory.findByIdAndUpdate(
@@ -235,7 +291,7 @@ const editsubcategory = async (req, res) => {
         { subCategory, subCategoryOffer, subCategoryOfferType },
         { new: true }
       );
-      
+
       return res.status(200).json(updatedSubCategory);
     }
 
@@ -250,16 +306,21 @@ const logout = (req, res) => {
   // req.session.destroy(() => {
   //   return res.status(200).json({ message: "logout successfull" });
   // });
+  const token = req.cookies.token;
+  console.log(token);
 
-  res.cookie("auth_token", "", {   // Use the same name as your cookie
-    httpOnly: true,                 // Keep HttpOnly flag
+  res.cookie("token", "", {
+    // Use the same name as your cookie
+    httpOnly: true, // Keep HttpOnly flag
     secure: process.env.NODE_ENV === "production", // Set secure flag for production (HTTPS)
-    expires: new Date(0),          // Set expiry to the past
-    sameSite: "strict"              // Optional: to prevent CSRF in certain contexts
+    expires: new Date(0), // Set expiry to the past
+    sameSite: "strict", // Optional: to prevent CSRF in certain contexts
   });
+  return res.status(200).json({ message: "logout successfull" });
 };
 
 module.exports = {
+  verifyToken,
   login,
   logout,
   getUserdata,

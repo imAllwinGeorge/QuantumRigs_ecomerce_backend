@@ -5,6 +5,8 @@ const productController = require('../controller/productController')
 const {upload} = require('../config/multer')
 
 
+route.get('/verify-token',adminController.verifyToken)
+
 route.post('/login',adminController.login)
 
 route.get('/users',adminController.getUserdata)
@@ -45,7 +47,7 @@ route.get('/moreprodctdetails/:productId',productController.moreProdctDetails)
 
 route.delete('/deleteimage',productController.deleteImage)
 
-route.put('/editproduct',productController.editProduct)
+route.put('/editproduct',upload.array('newImages', 3),productController.editProduct)
 
 route.put('/updateVariant/:variantId',productController.updateVariant)
 
