@@ -6,9 +6,13 @@ const otpVerification = require('../controller/otpVerification')
 
 // route.post('/signup',userController.signup);
 
-route.post('/signup',userController.signup)
+route.post('/signup',otpVerification.signup)
 
-route.post('/otp=submit',otpVerification.otpSubmit)
+route.post('/gooogle-signup',userController.googleSignUp)
+
+route.post('/otp=submit',userController.signup)
+
+route.get('/resend-otp',otpVerification.resendOtp)
 
 route.get('/verify-token',userController.verifyToken)
 

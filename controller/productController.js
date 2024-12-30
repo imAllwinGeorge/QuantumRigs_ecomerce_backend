@@ -22,7 +22,7 @@ const getProductPage = async (req, res) => {
 const getProductDetails = async (req, res) => {
   try {
     const product = await Product.find();
-    
+
     return res.status(200).json(product);
   } catch (error) {
     console.log("getProductdetailse", error);
@@ -157,8 +157,8 @@ const deleteImage = async (req, res) => {
 
 const editProduct = async (req, res) => {
   try {
-    console.log('Edit products API triggered');
-    
+    console.log("Edit products API triggered");
+
     // Extract fields from request body
     const {
       _id,
@@ -168,13 +168,22 @@ const editProduct = async (req, res) => {
       subCategoryId,
       productOffer,
       productOfferType,
-      isListed
+      isListed,
     } = req.body;
-    console.log(req.body)
-    console.log('editproducctsssssssssssssrsrs',productName,description,brandId,subCategoryId,productOffer,productOfferType,isListed)
+    console.log(req.body);
+    console.log(
+      "editproducctsssssssssssssrsrs",
+      productName,
+      description,
+      brandId,
+      subCategoryId,
+      productOffer,
+      productOfferType,
+      isListed
+    );
 
     // Ensure files are processed
-    const newImages = req.files ? req.files.map(file => file.filename) : [];
+    const newImages = req.files ? req.files.map((file) => file.filename) : [];
 
     // Fetch the current product from the database
     const product = await Product.findById(_id);
@@ -194,15 +203,14 @@ const editProduct = async (req, res) => {
       subCategoryId,
       productOffer,
       productOfferType,
-      isListed: isListed === 'true', // Convert to boolean
-      images: updatedImages // Append new images
+      isListed: isListed === "true", // Convert to boolean
+      images: updatedImages, // Append new images
     };
     const updatedProduct = await Product.findByIdAndUpdate(
       _id,
       { $set: updateData },
       { new: true }
     );
-
 
     console.log(updatedProduct, "qwertyuio");
     if (updatedProduct) {
@@ -211,7 +219,7 @@ const editProduct = async (req, res) => {
     }
     return res.status(404).json("prduct doesnot found");
   } catch (error) {
-    console.log("edit product",error)
+    console.log("edit product", error);
   }
 };
 

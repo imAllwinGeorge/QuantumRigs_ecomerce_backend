@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         // Use the original file name and append a timestamp to it to avoid conflicts
-        const uniqueName = `${Date.now()}-${file.originalname}.jpg`;
+        const uniqueName = `${Date.now()}-${file.originalname}.png`;
         cb(null, uniqueName);
     }
 });

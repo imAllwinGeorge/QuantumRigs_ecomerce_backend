@@ -75,17 +75,44 @@ const signup = async(req,res) =>{
     }
 }
 
-const otpSubmit = async(req,res)=>{
+const resendOtp = async (req,res)=>{
     try {
-        const {otp} = req.body
-        console.log(req.session.userOtp,otp)
-        const userOtp = req.session
-        if(otp === userOtp){
-            console.log(success )
+        console.log(req.session)
+        const {email} = req.session.userData
+        if(!email){
+            return res.status(404).json('email not found')
         }
+
+        const otp = generateOtp();
+
+        const emailSend = await sendVarificationEmail(email,otp);
+        
+        if(!emailSend){
+            return res.status(400).json('otp cannot be send')
+        }
+        console.log('resendedotp',otp)
+        req.session.userOtp =  otp
+
+        return res.status(200).json('otp send successfully')
+        
     } catch (error) {
-        console.log("otpsubmit",error)
+        console.log('resendOtp',error)
     }
 }
 
-module.exports = {signup,otpSubmit}
+// const otpSubmit = async(req,res)=>{
+//     try {
+//         const {otp} = req.body
+//         console.log(req.session.userOtp,otp)
+//     const {userOtp} = req.session
+//         console.log(userOtp)
+//         if(otp === userOtp){
+//             console.log('otpverificationsuccess')
+//             res.redirect('/save-user')
+//         }
+//     } catch (error) {
+//         console.log("otpsubmit",error)
+//     }
+// }
+
+module.exports = {signup,resendOtp}

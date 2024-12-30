@@ -2,44 +2,28 @@ const User = require("../model/userSchema");
 const bcrypt = require("bcrypt");
 const saltRound = parseInt(process.env.SALT_VALUE);
 const jwt = require("jsonwebtoken");
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 const Product = require("../model/productModel");
 const Variant = require("../model/variantModel");
+const Brand = require("../model/brandModel");
 require("dotenv").config();
 const secretKey = process.env.JWT_SCRET;
 
 const signup = async (req, res) => {
+  console.log("session", req.session);
   try {
-    const { email, firstName, lastName, phone, userName, password } = req.body;
-    console.log(req.body);
-    const isExist = await User.findOne({ email });
+    const { otp } = req.body;
+    const { userOtp } = req.session;
+    const { firstName, lastName, email, password, phone } =
+      req.session.userData;
 
-    if (isExist) {
-      return res.status(409).json(
-         "user already exist"
-      );
-    } 
-    else if (password) {
-
-      // const otp = Math.floor(100000+Math.random()*900000).toString();
-
-      // const transporter = nodemailer.createTransport({
-      //   host: "smtp.ethereal.email",
-      //   port: 587,
-      //   secure: false, // true for port 465, false for other ports
-      //   auth: {
-      //     user: "maddison53@ethereal.email",
-      //     pass: "jn7jnAPss4f63QBp6D",
-      //   },
-      // });
-      
-
+    if (password && otp == userOtp) {
       const hashedPassword = await bcrypt.hash(password, saltRound);
 
       const user = await User.create({
         firstName,
         lastName,
-        userName,
+        userName: firstName,
         email,
         password: hashedPassword,
         phone,
@@ -47,62 +31,88 @@ const signup = async (req, res) => {
 
       // await user.save();
 
-      return res.status(201).json({
-        message: "user created succefully",
-      });
-    } else if (req.body.googleId) {
-      console.log(req.body.googleId);
+      return res.status(201).json("signup successful");
+    } else {
+      return res.status(401).json("Invalid otp");
+    }
+  } catch (error) {
+    console.log(error);
+    res.json("some thing went wrong");
+  }
+};
+
+const googleSignUp = async (req,res)=>{
+  try {
+    console.log(req.body)
+   const {firstName,lastName,userName,email,googleId} = req.body
+
+   const isExist = await User.findOne({email});
+   if(isExist){
+    const token = await jwt.sign({googleId},secretKey,{expiresIn:'30d'});
+    res.cookie('user_token',token,{
+      httpOnly:true,
+      maxAge:30 * 24 * 60 * 60 * 1000,
+      secure:false,
+      sameSite:"lax"
+    })
+    return res.status(200).json(googleId);
+   }
+   
       await User.create({
         firstName,
         lastName,
         userName,
         email,
-        googleId: req.body.googleId,
+        googleId,
       });
-      res.json({
-        status: 201,
+
+      const token = await jwt.sign({googleId},secretKey,{expiresIn:'30d'})
+      res.cookie('user_token',token,{
+        httpOnly: true,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: false, // Set to true in production with HTTPS
+        sameSite: "lax",
+      })
+      return res.status(201).json({
         message: "user created successfully",
         googleId: req.body.googleId,
       });
-    }
   } catch (error) {
-    console.log(error);
-    res.json('some thing went wrong');
+    console.log('googlesignup',error)
   }
-};
+}
 
-const verifyToken = async (req,res)=>{
-  const userToken = req.cookies.user_token
-  console.log(userToken)
-  if(!userToken){
-    return res.status(404).json('no token available')
+const verifyToken = async (req, res) => {
+  const userToken = req.cookies.user_token;
+  console.log("usertoken verification",userToken);
+  if (!userToken) {
+    return res.status(401).json(userToken);
   }
 
   // Using promisified version of jwt.verify for better error handling
-     try {
-       const decoded = await new Promise((resolve, reject) => {
-         jwt.verify(userToken, process.env.JWT_SCRET, (err, decoded) => {
-           if (err) reject(err);
-           resolve(decoded);
-         });
-       });
- 
-       console.log('Token verified for user:', decoded);
-       
-       // Attach the decoded user info to the request object for use in subsequent middleware
-      //  req.user = decoded;
- 
-       return res.status(200).json({
-         success: true,
-         message: 'Token verified',
-         user: decoded // Optionally return user info if needed by frontend
-       });
+  try {
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(userToken, process.env.JWT_SCRET, (err, decoded) => {
+        if (err) reject(err);
+        resolve(decoded);
+      });
+    });
 
-      }catch(error){
-        console.log('verify userToken',error)
-        res.status(500).json('something went wrong')
-      }
-}
+    console.log("Token verified for user:", decoded);
+
+    // Attach the decoded user info to the request object for use in subsequent middleware
+    //  req.user = decoded;
+
+    return res.status(200).json({
+      success: true,
+      message: "Token verified",
+      user: decoded, // Optionally return user info if needed by frontend
+    });
+  } catch (error) {
+    console.log("verify userToken", error);
+    res.status(500).json("something went wrong");
+  }
+};
 
 const login = async (req, res) => {
   try {
@@ -118,7 +128,7 @@ const login = async (req, res) => {
         return res.status(404).json("user does not exist");
       } else {
         try {
-          const token = jwt.sign({googleId},secretKey,{expiresIn:'30d'})
+          const token = jwt.sign({ googleId }, secretKey, { expiresIn: "30d" });
           res.cookie("user_token", token, {
             httpOnly: true,
             maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
@@ -128,56 +138,55 @@ const login = async (req, res) => {
           return res.status(200).json({
             user,
           });
-
         } catch (error) {
-          console.log('googlelogin tokenn',error)
-          return res.status(500).json('something went wrong')
+          console.log("googlelogin tokenn", error);
+          return res.status(500).json("something went wrong");
         }
-        
       }
     } else {
       try {
-        const {email,password} = req.body
-        console.log(req.body)
-        const user = await User.findOne({email})
-        if(!user){
-            return res.status(404).json('user not found')
+        const { email, password } = req.body;
+        console.log(req.body);
+        const user = await User.findOne({ email });
+        if (!user) {
+          return res.status(404).json("user not found");
         }
-        console.log(user.isBlocked)
-        if(user.isBlocked){
-            console.log('not blocked')
-            return res.status(403).json('user is not allowed to login')
-        }
-        
-        const isMatch = await bcrypt.compare(password,user.password)
-        
-        if(!isMatch){
-            console.log(isMatch)
-            return res.status(401).json('invalid credential')
+        console.log(user.isBlocked);
+        if (user.isBlocked) {
+          console.log("not blocked");
+          return res.status(403).json("user is not allowed to login");
         }
 
-       console.log('hello')
-            const token = jwt.sign({id:user._id},secretKey,{expiresIn:'30d'})
-console.log(token)
-            res.cookie("user_token", token, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                secure: false, // Set to true in production with HTTPS
-                sameSite: "lax",
-              });
-          
-              console.log("user signin successful");
-          
-              return res.status(200).json({
-                message: "Login successful",
-                id: user._id,
-                name: user.firstName,
-                email: user.email,
-                phone: user.phone,
-              });
-       
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+          console.log(isMatch);
+          return res.status(401).json("invalid credential");
+        }
+
+        console.log("hello");
+        const token = jwt.sign({ id: user._id }, secretKey, {
+          expiresIn: "30d",
+        });
+        console.log(token);
+        res.cookie("user_token", token, {
+          httpOnly: true,
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          secure: false, // Set to true in production with HTTPS
+          sameSite: "lax",
+        });
+
+        console.log("user signin successful");
+
+        return res.status(200).json({
+          message: "Login successful",
+          id: user._id,
+          name: user.firstName,
+          email: user.email,
+          phone: user.phone,
+        });
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     }
   } catch (error) {
@@ -187,34 +196,47 @@ console.log(token)
 
 const home = async (req, res) => {
   try {
-    const productDetails = await Product.aggregate([{$lookup:{from:'varients',localField:'_id',foreignField  :'productId',as:'variants'}}])
+    const productDetails = await Product.aggregate([
+      {
+        $lookup: {
+          from: "varients",
+          localField: "_id",
+          foreignField: "productId",
+          as: "variants",
+        },
+      },
+    ]);
+    const brandDetails = await Brand.find()
     // const productDetails = await Variant.findOne({productId:'67696b243116fc8c75910ad6'})
     // console.log(productDetails)
-    if(productDetails){
-      return res.status(200).json(productDetails)
+    if (productDetails) {
+      return res.status(200).json({productDetails,brandDetails});
     }
-    return res.status(404).json('no product details to show')
+    return res.status(404).json("no product details to show");
   } catch (error) {
-    console.log('homepag',error)
-    res.status(500).json('something went wrong')
+    console.log("homepag", error);
+    res.status(500).json("something went wrong");
   }
 };
 
-const productDescription = async(req,res)=>{
+const productDescription = async (req, res) => {
   try {
-    const productId = req.params.productId
-    console.log(productId,'222222222222222222222222222222')
-    const productDetails = await Product.findById({_id:productId}).populate('brandId','brand')
-    const variantDetails = await Variant.find({productId:productId})
-    console.log(productDetails,variantDetails)
-    return res.status(200).json({productDetails,variantDetails})
+    const productId = req.params.productId;
+    console.log(productId, "222222222222222222222222222222");
+    const productDetails = await Product.findById({ _id: productId }).populate(
+      "brandId",
+      "brand"
+    );
+    const variantDetails = await Variant.find({ productId: productId });
+    console.log(productDetails, variantDetails);
+    return res.status(200).json({ productDetails, variantDetails });
   } catch (error) {
-    console.log('productDescription',error)
+    console.log("productDescription", error);
   }
-}
+};
 
 const logout = (req, res) => {
-  console.log(req.session)
+  console.log(req.session);
   if (req.user) {
     req.logOut(() => {
       console.log(req.user);
@@ -245,4 +267,12 @@ const logout = (req, res) => {
   }
 };
 
-module.exports = { signup, login, logout, home ,verifyToken,productDescription};
+module.exports = {
+  signup,
+  login,
+  logout,
+  home,
+  verifyToken,
+  productDescription,
+  googleSignUp
+};
