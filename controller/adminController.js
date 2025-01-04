@@ -161,7 +161,7 @@ const addSubCategory = async (req, res) => {
   } = req.body;
   console.log(categoryId);
   try {
-    const isExist = await SubCategory.findOne({ subCategory });
+    const isExist = await SubCategory.findOne({ subCategory:{$regex: new RegExp(`^${subCategory}$`,'i')} } );
     if (isExist) {
       return res.status(409).json("user already exist");
     }
@@ -195,7 +195,7 @@ const getSubCategories = async (req, res) => {
 const addCategory = async (req, res) => {
   const { category, description } = req.body;
   try {
-    const cat = await Category.findOne({ category });
+    const cat = await Category.findOne({ category:{$regex: new RegExp(`^${category}$`,'i')}  });
     if (cat) {
       return res.status(409).json("category already exist");
     }

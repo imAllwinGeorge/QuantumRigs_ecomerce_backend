@@ -62,9 +62,9 @@ const addProduct = async (req, res) => {
       filename = req.files.map((images) => images.filename);
     }
 
-    const isExist = await Product.findOne({ productName });
+    const isExist = await Product.findOne({ productName:{$regex: new RegExp(`^${productName}$`,'i')} });
     if (isExist) {
-      return res.status(404).json("produt already exist");
+      return res.status(404).json({message:"produt already exist"});
     }
     const productDetails = await Product.create({
       productName,
@@ -118,7 +118,7 @@ const AddBrands = async (req, res) => {
   try {
     const { brand, description } = req.body;
     console.log(brand, description);
-    const isExist = await Brand.findOne({ brand });
+    const isExist = await Brand.findOne({ brand:{$regex: new RegExp(`^${brand}$`,'i')} });
     console.log(isExist);
     if (!isExist) {
       await Brand.create({ brand, description });

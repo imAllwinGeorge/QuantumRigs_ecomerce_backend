@@ -52,7 +52,7 @@ const signup = async(req,res) =>{
     try {
         const {email,password,phone,firstName,lastName,userName} = req.body
 
-        const isExist = await User.findOne({email})
+        const isExist = await User.findOne({email:{$regex: new RegExp(`^${email}$`,'i')} })
         if(isExist){
             return res.status(404).json('user already exist')
         }else if(password){
@@ -91,6 +91,7 @@ const resendOtp = async (req,res)=>{
             return res.status(400).json('otp cannot be send')
         }
         console.log('resendedotp',otp)
+        req.session.userOtp = null;
         req.session.userOtp =  otp
 
         return res.status(200).json('otp send successfully')
@@ -100,19 +101,29 @@ const resendOtp = async (req,res)=>{
     }
 }
 
-// const otpSubmit = async(req,res)=>{
-//     try {
-//         const {otp} = req.body
-//         console.log(req.session.userOtp,otp)
-//     const {userOtp} = req.session
-//         console.log(userOtp)
-//         if(otp === userOtp){
-//             console.log('otpverificationsuccess')
-//             res.redirect('/save-user')
-//         }
-//     } catch (error) {
-//         console.log("otpsubmit",error)
-//     }
-// }
+const verifyEmail = async (req,res)=>{
+    try {
+        const {email} = req.body;
+        const user = await User.findOne({email});
+        if(!user){
+            return res.status(401).json('please check you email id')
+        }
+        const otp = generateOtp();
 
-module.exports = {signup,resendOtp}
+        const sendEmail = await sendVarificationEmail(email,otp);
+        if(!sendEmail){
+            return res.status(404).json('verification email not sended')
+        }
+        req.session.userOtp = otp;
+        req.session.userData = {email};
+        console.log(otp)
+        
+        return res.status(200).json('otp sended to you email')
+    } catch (error) {
+        console.log(error.message,"verifyemail otpVerifiction")
+    }
+}
+
+
+
+module.exports = {signup,resendOtp,verifyEmail}
