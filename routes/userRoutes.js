@@ -2,6 +2,8 @@ const express = require('express')
 const route = express.Router();
 const userController = require('../controller/usercontroller')
 const otpVerification = require('../controller/otpVerification');
+const cartContorller = require('../controller/cartController');
+const orderController = require('../controller/orderController')
 
 
 
@@ -40,6 +42,16 @@ route.get('/get-address/:userId',userController.getAddress)
 route.put('/edit-address',userController.editAddress);
 
 route.patch('/delete-address/:addressId',userController.deleteAddress);
+
+route.post('/add-to-cart',cartContorller.addToCart);
+
+route.get('/get-cart/:userId',cartContorller.getCart)
+
+route.patch('/cart-quantity/:productId/:variantId/:userId/:value',cartContorller.quantityManagement);
+
+route.delete('/remove-item/:productId/:variantId/:userId',cartContorller.removeProduct);
+
+route.post('/order-product',orderController.orderProducts)
 
 route.get('/userlogout',userController.logout)
 

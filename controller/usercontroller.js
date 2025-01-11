@@ -67,7 +67,7 @@ const googleSignUp = async (req, res) => {
 
     const isExist = await User.findOne({ email });
     if (isExist) {
-      const token = await jwt.sign({ _id: googleId }, secretKey, {
+      const token = await jwt.sign({ _id: isExist._id }, secretKey, {
         expiresIn: "30d",
       });
       res.cookie("user_token", token, {
@@ -121,11 +121,12 @@ const verifyToken = async (req, res) => {
       });
     });
 
-    // console.log("Token verified for user:", decoded);
+    console.log("Token verified for user:", decoded);
 
     // Attach the decoded user info to the request object for use in subsequent middleware
     //  req.user = decoded;
-    const user = await User.findById({ _id: decoded._id });
+    console.log(decoded._id)
+    const user = await User.findOne( {_id: decoded._id });
     // console.log("is active user", user);
     if (user.isBlocked) {
       return res
@@ -158,7 +159,7 @@ const login = async (req, res) => {
         return res.status(404).json("user does not exist");
       } else {
         try {
-          const token = jwt.sign({ _id: googleId }, secretKey, {
+          const token = jwt.sign({ _id: user._id }, secretKey, {
             expiresIn: "30d",
           });
 
