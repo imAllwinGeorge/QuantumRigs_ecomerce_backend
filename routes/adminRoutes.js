@@ -2,6 +2,7 @@ const express = require('express')
 const route = express.Router();
 const adminController = require('../controller/adminController')
 const productController = require('../controller/productController')
+const orderController = require('../controller/orderController')
 const {upload} = require('../config/multer')
 
 
@@ -49,7 +50,11 @@ route.delete('/deleteimage',productController.deleteImage)
 
 route.put('/editproduct',upload.array('newImages', 3),productController.editProduct)
 
-route.put('/updateVariant/:variantId',productController.updateVariant)
+route.put('/updateVariant/:variantId',productController.updateVariant);
+
+route.get('/get-orders',orderController.getOrders);
+
+route.patch('/change-status/:status/:orderId/:productOrderId',orderController.changeStatus);
 
 route.get('/logout',adminController.logout)
 
