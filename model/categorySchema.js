@@ -17,7 +17,12 @@ const categorySchema = new Schema({
     },
     categoryOffer:{
         type:Number,
-        default:0,
+        required:true,
+    },
+    categoryOfferType:{
+        type:String,
+        enum:["none","flat","percentage"],
+        default:'none'
     },
     createdAt:{
         type:Date,

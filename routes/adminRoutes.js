@@ -4,6 +4,8 @@ const adminController = require('../controller/adminController')
 const productController = require('../controller/productController')
 const orderController = require('../controller/orderController')
 const {upload} = require('../config/multer')
+const salePriceMiddleWare = require('../middleware/findSalePrice')
+const editProductSalePrice = require('../middleware/editProductSalePrice')
 
 
 route.get('/verify-token',adminController.verifyToken)
@@ -34,7 +36,7 @@ route.put('/editsubcategory',adminController.editsubcategory)
 
 route.get('/addproduct',productController.getProductPage)
 
-route.post('/addvariant',productController.addVariant)
+route.post('/addvariant',salePriceMiddleWare.findSalePrice,productController.addVariant)
 
 route.post('/addproduct', upload.array('images', 3),productController.addProduct)
 
@@ -48,9 +50,9 @@ route.get('/moreprodctdetails/:productId',productController.moreProdctDetails)
 
 route.delete('/deleteimage',productController.deleteImage)
 
-route.put('/editproduct',upload.array('newImages', 3),productController.editProduct)
+route.put('/editproduct',upload.array('newImages', 3),editProductSalePrice.editProductSalePrice,productController.editProduct)
 
-route.put('/updateVariant/:variantId',productController.updateVariant);
+route.put('/updateVariant/:variantId',salePriceMiddleWare.findSalePrice,productController.updateVariant);
 
 route.get('/get-orders',orderController.getOrders);
 

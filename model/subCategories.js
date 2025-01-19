@@ -18,11 +18,12 @@ const subCategorySchema = new Schema({
     },
     subCategoryOfferType:{
         type:String,
-        default:0,
+        enum:["none","flat","percentage"],
+        default:"none",
     },
     categoryId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'Category',
+        ref:'category',
         required:true,
     },
     isListed:{

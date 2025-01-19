@@ -28,6 +28,8 @@ const productSchema = new Schema({
   },
   productOfferType: {
     type: String,
+    enum:["none","flat","percentage"],
+    default:"none",
     required: false,
   },
   images: {
@@ -37,6 +39,16 @@ const productSchema = new Schema({
   isListed: {
     type: Boolean,
     default: true,
+  },
+  activeOfferType:{
+    type:String,
+    required:true,
+    default:'none'
+  },
+  activeOffer:{
+    type:Number,
+    required:true,
+    default:0
   },
   createdAt: {
     type: Date,

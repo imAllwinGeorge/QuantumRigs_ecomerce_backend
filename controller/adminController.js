@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Category = require("../model/categorySchema");
 const SubCategory = require("../model/subCategories");
+const { editCategorySalePrice } = require("../middleware/editCategorySalePrice");
+const { editSubCategorySalePrice } = require("../middleware/editSubCategorySalePrice");
 require("dotenv").config();
 const secretKey = process.env.JWT_SCRET;
 
@@ -193,7 +195,7 @@ const getSubCategories = async (req, res) => {
 };
 
 const addCategory = async (req, res) => {
-  const { category, description } = req.body;
+  const { category, description,categoryOffer,categoryOfferType } = req.body;
   try {
     const cat = await Category.findOne({ category:{$regex: new RegExp(`^${category}$`,'i')}  });
     if (cat) {
@@ -202,17 +204,20 @@ const addCategory = async (req, res) => {
     await Category.create({
       category,
       description,
+      categoryOffer,
+      categoryOfferType
     });
 
     return res.status(201).json("category added successful");
   } catch (error) {
     console.log(",,,,,,,,,,,", error);
+    res.status(500).json('something went wrong')
   }
 };
 
 const editCategory = async (req, res) => {
   try {
-    const { categoryId, category, description } = req.body;
+    const { categoryId, category, description, categoryOffer, categoryOfferType } = req.body;
 
     const isExist = await Category.findOne({
       category,
@@ -222,9 +227,14 @@ const editCategory = async (req, res) => {
     if (!isExist) {
       const editedCategory = await Category.findByIdAndUpdate(
         { _id: categoryId },
-        { category, description },
+        { category, description,categoryOffer,categoryOfferType },
         { new: true }
       );
+      req.body.categoryId = categoryId;
+      req.body.categoryOffer = categoryOffer;
+      req.body.categoryOfferType = categoryOfferType;
+      
+      await editCategorySalePrice(categoryId,categoryOffer,categoryOfferType);
       return res.status(200).json(editedCategory);
     }
     return res.status(404).json("something went wrong");
@@ -291,7 +301,7 @@ const editsubcategory = async (req, res) => {
         { subCategory, subCategoryOffer, subCategoryOfferType },
         { new: true }
       );
-
+      await editSubCategorySalePrice(updatedSubCategory)
       return res.status(200).json(updatedSubCategory);
     }
 

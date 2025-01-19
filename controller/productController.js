@@ -4,6 +4,7 @@ const Product = require("../model/productModel");
 const Variant = require("../model/variantModel");
 const fs = require("fs");
 const path = require("path");
+const Category = require("../model/categorySchema");
 
 const getProductPage = async (req, res) => {
   try {
@@ -35,11 +36,13 @@ const moreProdctDetails = async (req, res) => {
     console.log(productId);
     const productInfo = await Product.findById(productId)
       .populate("brandId", "brand")
-      .populate("subCategoryId", "subCategory");
+      .populate("subCategoryId", "subCategory categoryId subCategoryOffer subCategoryOfferType");
     const variantInfo = await Variant.find({ productId });
-    console.log(variantInfo);
-    if (productInfo && variantInfo) {
-      return res.status(200).json({ productInfo, variantInfo });
+    const categoryInfo = await Category.findById(productInfo?.subCategoryId?.categoryId);
+    
+    
+    if (productInfo && variantInfo && categoryInfo) {
+      return res.status(200).json({ productInfo, variantInfo, categoryInfo });
     }
     return res.status(404).json("user not found");
   } catch (error) {
@@ -87,16 +90,19 @@ const addProduct = async (req, res) => {
 
 const addVariant = async (req, res) => {
   try {
-    const { attributes, quantity, regularPrice, salePrice, productId } =
+    const { attributes, quantity, regularPrice, productId, subCategoryId } =
       req.body;
+      
+      console.log(req.salePrice)
     await Variant.create({
       attributes,
       quantity,
       regularPrice,
-      salePrice,
+      salePrice:req.salePrice.price,
       productId,
     });
-
+    const product = await Product.findByIdAndUpdate(productId,{activeOfferType:req.salePrice.offerType,activeOffer:req.salePrice.offerValue},{new:true});
+    req.salePrice = null
     return res.status(201).json("product details added");
   } catch (error) {
     console.log("addvariant ", error);
@@ -157,7 +163,7 @@ const deleteImage = async (req, res) => {
 
 const editProduct = async (req, res) => {
   try {
-    console.log("Edit products API triggered");
+    
 
     // Extract fields from request body
     const {
@@ -170,17 +176,7 @@ const editProduct = async (req, res) => {
       productOfferType,
       isListed,
     } = req.body;
-    console.log(req.body);
-    console.log(
-      "editproducctsssssssssssssrsrs",
-      productName,
-      description,
-      brandId,
-      subCategoryId,
-      productOffer,
-      productOfferType,
-      isListed
-    );
+    
 
     // Ensure files are processed
     const newImages = req.files ? req.files.map((file) => file.filename) : [];
@@ -194,7 +190,7 @@ const editProduct = async (req, res) => {
 
     // Combine existing images with new images
     const updatedImages = [...product.images, ...newImages];
-
+console.log(req.salePrice)
     // Prepare updated data
     const updateData = {
       productName,
@@ -203,6 +199,8 @@ const editProduct = async (req, res) => {
       subCategoryId,
       productOffer,
       productOfferType,
+      activeOffer:req.salePrice.offerValue,
+      activeOfferType:req.salePrice.offerType,
       isListed: isListed === "true", // Convert to boolean
       images: updatedImages, // Append new images
     };
@@ -212,6 +210,9 @@ const editProduct = async (req, res) => {
       { new: true }
     );
 
+    
+    req.salePrice = null;
+    
     console.log(updatedProduct, "qwertyuio");
     if (updatedProduct) {
       console.log("success");
@@ -225,14 +226,17 @@ const editProduct = async (req, res) => {
 
 const updateVariant = async (req, res) => {
   try {
-    const { variantToUpdate } = req.body;
+    const { variantToUpdate,productId } = req.body;
     const variantId = req.params.variantId;
-    const updatedVaraint = await Variant.findByIdAndUpdate(
+    const updatedVariant = await Variant.findByIdAndUpdate(
       variantId,
-      { $set: { ...variantToUpdate } },
+      { $set: { ...variantToUpdate,salePrice:req.salePrice.price } },
       { new: true }
     );
-    if (updatedVaraint) {
+    const product = await Product.findByIdAndUpdate(productId,{activeOfferType:req.salePrice.offerType,activeOffer:req.salePrice.offerValue},{new:true})
+    console.log(product)
+    req.salePrice = null
+    if (updatedVariant) {
       return res.status(200).json("variant updated successfully");
     }
     return res.status(404).json("varaint not found");
