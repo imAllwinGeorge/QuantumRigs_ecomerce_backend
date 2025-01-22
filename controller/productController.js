@@ -5,6 +5,8 @@ const Variant = require("../model/variantModel");
 const fs = require("fs");
 const path = require("path");
 const Category = require("../model/categorySchema");
+const Order = require("../model/OrderModel");
+const Wallet = require("../model/walletModel");
 
 const getProductPage = async (req, res) => {
   try {
@@ -36,11 +38,15 @@ const moreProdctDetails = async (req, res) => {
     console.log(productId);
     const productInfo = await Product.findById(productId)
       .populate("brandId", "brand")
-      .populate("subCategoryId", "subCategory categoryId subCategoryOffer subCategoryOfferType");
+      .populate(
+        "subCategoryId",
+        "subCategory categoryId subCategoryOffer subCategoryOfferType"
+      );
     const variantInfo = await Variant.find({ productId });
-    const categoryInfo = await Category.findById(productInfo?.subCategoryId?.categoryId);
-    
-    
+    const categoryInfo = await Category.findById(
+      productInfo?.subCategoryId?.categoryId
+    );
+
     if (productInfo && variantInfo && categoryInfo) {
       return res.status(200).json({ productInfo, variantInfo, categoryInfo });
     }
@@ -65,9 +71,11 @@ const addProduct = async (req, res) => {
       filename = req.files.map((images) => images.filename);
     }
 
-    const isExist = await Product.findOne({ productName:{$regex: new RegExp(`^${productName}$`,'i')} });
+    const isExist = await Product.findOne({
+      productName: { $regex: new RegExp(`^${productName}$`, "i") },
+    });
     if (isExist) {
-      return res.status(404).json({message:"produt already exist"});
+      return res.status(404).json({ message: "produt already exist" });
     }
     const productDetails = await Product.create({
       productName,
@@ -92,17 +100,24 @@ const addVariant = async (req, res) => {
   try {
     const { attributes, quantity, regularPrice, productId, subCategoryId } =
       req.body;
-      
-      console.log(req.salePrice)
+
+    console.log(req.salePrice);
     await Variant.create({
       attributes,
       quantity,
       regularPrice,
-      salePrice:req.salePrice.price,
+      salePrice: req.salePrice.price,
       productId,
     });
-    const product = await Product.findByIdAndUpdate(productId,{activeOfferType:req.salePrice.offerType,activeOffer:req.salePrice.offerValue},{new:true});
-    req.salePrice = null
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      {
+        activeOfferType: req.salePrice.offerType,
+        activeOffer: req.salePrice.offerValue,
+      },
+      { new: true }
+    );
+    req.salePrice = null;
     return res.status(201).json("product details added");
   } catch (error) {
     console.log("addvariant ", error);
@@ -124,7 +139,9 @@ const AddBrands = async (req, res) => {
   try {
     const { brand, description } = req.body;
     console.log(brand, description);
-    const isExist = await Brand.findOne({ brand:{$regex: new RegExp(`^${brand}$`,'i')} });
+    const isExist = await Brand.findOne({
+      brand: { $regex: new RegExp(`^${brand}$`, "i") },
+    });
     console.log(isExist);
     if (!isExist) {
       await Brand.create({ brand, description });
@@ -163,8 +180,6 @@ const deleteImage = async (req, res) => {
 
 const editProduct = async (req, res) => {
   try {
-    
-
     // Extract fields from request body
     const {
       _id,
@@ -176,7 +191,6 @@ const editProduct = async (req, res) => {
       productOfferType,
       isListed,
     } = req.body;
-    
 
     // Ensure files are processed
     const newImages = req.files ? req.files.map((file) => file.filename) : [];
@@ -190,7 +204,7 @@ const editProduct = async (req, res) => {
 
     // Combine existing images with new images
     const updatedImages = [...product.images, ...newImages];
-console.log(req.salePrice)
+    console.log(req.salePrice);
     // Prepare updated data
     const updateData = {
       productName,
@@ -199,8 +213,8 @@ console.log(req.salePrice)
       subCategoryId,
       productOffer,
       productOfferType,
-      activeOffer:req.salePrice.offerValue,
-      activeOfferType:req.salePrice.offerType,
+      activeOffer: req.salePrice.offerValue,
+      activeOfferType: req.salePrice.offerType,
       isListed: isListed === "true", // Convert to boolean
       images: updatedImages, // Append new images
     };
@@ -210,9 +224,8 @@ console.log(req.salePrice)
       { new: true }
     );
 
-    
     req.salePrice = null;
-    
+
     console.log(updatedProduct, "qwertyuio");
     if (updatedProduct) {
       console.log("success");
@@ -226,22 +239,110 @@ console.log(req.salePrice)
 
 const updateVariant = async (req, res) => {
   try {
-    const { variantToUpdate,productId } = req.body;
+    const { variantToUpdate, productId } = req.body;
     const variantId = req.params.variantId;
     const updatedVariant = await Variant.findByIdAndUpdate(
       variantId,
-      { $set: { ...variantToUpdate,salePrice:req.salePrice.price } },
+      { $set: { ...variantToUpdate, salePrice: req.salePrice.price } },
       { new: true }
     );
-    const product = await Product.findByIdAndUpdate(productId,{activeOfferType:req.salePrice.offerType,activeOffer:req.salePrice.offerValue},{new:true})
-    console.log(product)
-    req.salePrice = null
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      {
+        activeOfferType: req.salePrice.offerType,
+        activeOffer: req.salePrice.offerValue,
+      },
+      { new: true }
+    );
+    console.log(product);
+    req.salePrice = null;
     if (updatedVariant) {
       return res.status(200).json("variant updated successfully");
     }
     return res.status(404).json("varaint not found");
   } catch (error) {
     console.log("updatevariant", error);
+  }
+};
+
+const returnProduct = async (req, res) => {
+  try {
+    const {
+      orderId,
+      productOrderId,
+      paymentMethod,
+      productId,
+      variantId,
+      quantity,
+      userId,
+      totalAmount,
+    } = req.body;
+
+    const updateQuantity = await Variant.findByIdAndUpdate(
+      variantId,
+      { $inc: { quantity: quantity } },
+      { new: true }
+    );
+
+    // change order status
+    const order = await Order.findById(orderId);
+
+    order.items = order.items.map((item) =>
+      item._id.toString() === productOrderId
+        ? { ...item.toObject(), status: "Returned" }
+        : item
+    );
+    await order.save();
+
+    // save wallet transaction
+
+    // if (paymentMethod === "online") {
+      const wallet = await Wallet.findOne({ userId });
+      if (!wallet) {
+        await Wallet.create({
+          userId,
+          transactionDetails: [
+            {
+              type: "credit",
+              amount: totalAmount,
+              description: `refund for returning product, product orderId ${productOrderId}`,
+            },
+          ],
+        });
+      } 
+      else {
+        let details = {
+          type: "credit",
+          amount: totalAmount,
+          description: `refund for returning product, product orderId ${productOrderId}`,
+        };
+
+        wallet.transactionDetails.push(details);
+        await wallet.save();
+        return res.status(200).json({ message: "product returned" });
+      }
+    // }
+    //  else {
+    //   const updateQuantity = await Variant.findByIdAndUpdate(
+    //     variantId,
+    //     { $inc: { quantity: quantity } },
+    //     { new: true }
+    //   );
+
+    //   // change order status
+    //   const order = await Order.findById(orderId);
+
+    //   order.items = order.items.map((item) =>
+    //     item._id.toString() === productOrderId
+    //       ? { ...item.toObject(), status: "Returned" }
+    //       : item
+    //   );
+    //   await order.save();
+    //   return res.status(200).json({ message: "product returned successfull" });
+    // }
+  } catch (error) {
+    console.log("return product", error.message);
+    res.status(500).json({ message: "something went wrong" });
   }
 };
 
@@ -256,4 +357,5 @@ module.exports = {
   deleteImage,
   editProduct,
   updateVariant,
+  returnProduct,
 };

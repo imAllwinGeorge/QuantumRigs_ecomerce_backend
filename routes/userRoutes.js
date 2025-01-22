@@ -4,6 +4,10 @@ const userController = require('../controller/usercontroller')
 const otpVerification = require('../controller/otpVerification');
 const cartContorller = require('../controller/cartController');
 const orderController = require('../controller/orderController')
+const couponController = require('../controller/couponController');
+const wishlistContoller = require('../controller/wishlistController');
+const walletController = require('../controller/walletcontroller');
+const productController = require('../controller/productController')
 
 
 
@@ -55,7 +59,23 @@ route.post('/order-product',orderController.orderProducts);
 
 route.get('/fetch-order-details/:userId',orderController.fetchOrderDetails);
 
-route.patch('/cancel-product/:orderId/:productOrderId',orderController.cancelProduct);
+route.patch('/cancel-product',orderController.cancelProduct);
+
+route.get('/get-coupons',couponController.getCoupons);
+
+route.post("/api/payment/create-order",orderController.razorpayCreateOrder);
+
+route.post("/api/payment/verify-payment",orderController.verifyRazorpayPayment);
+
+route.get('/get-wishlist/:userId',wishlistContoller.getWishlist);
+
+route.post('/addto-wishlist/:productId/:variantId/:userId',wishlistContoller.addToWishlist);
+
+route.delete('/remove-product/:productId/:variantId/:userId',wishlistContoller.removeProduct);
+
+route.get("/get-wallet/:userId",walletController.getWalletHistory);
+
+route.post("/return-product",productController.returnProduct);
 
 route.get('/userlogout',userController.logout);
 

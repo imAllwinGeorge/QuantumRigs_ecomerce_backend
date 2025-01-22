@@ -3,6 +3,7 @@ const route = express.Router();
 const adminController = require('../controller/adminController')
 const productController = require('../controller/productController')
 const orderController = require('../controller/orderController')
+const couponController = require('../controller/couponController')
 const {upload} = require('../config/multer')
 const salePriceMiddleWare = require('../middleware/findSalePrice')
 const editProductSalePrice = require('../middleware/editProductSalePrice')
@@ -57,6 +58,12 @@ route.put('/updateVariant/:variantId',salePriceMiddleWare.findSalePrice,productC
 route.get('/get-orders',orderController.getOrders);
 
 route.patch('/change-status/:status/:orderId/:productOrderId',orderController.changeStatus);
+
+route.get('/get-coupons',couponController.getCoupons);
+
+route.post('/add-coupon',couponController.addCoupon);
+
+route.delete('/delete-coupon/:couponId',couponController.deleteCoupon);
 
 route.get('/logout',adminController.logout)
 

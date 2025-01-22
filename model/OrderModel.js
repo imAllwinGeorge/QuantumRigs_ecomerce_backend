@@ -25,7 +25,7 @@ const orderSchema = new Schema({
         },
         status: {
             type: String,
-            enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
+            enum: ["Pending", "Shipped", "Delivered", "Cancelled","Returned"],
             default: "Pending", // Default status for each product
         },
 
@@ -40,7 +40,7 @@ const orderSchema = new Schema({
     },
     paymentMethod:{
         type:String,
-        enum:["COD","Online"],
+        enum:["COD","online"],
         required:true,
     },
     totalAmount:{
@@ -50,6 +50,32 @@ const orderSchema = new Schema({
     createdAt:{
         type:Date,
         default:Date.now
+    },
+    couponDetails:{
+        couponCode:{
+            type:String,
+        },
+        couponOffer:{
+            type:Number,
+        },
+        couponType:{
+            type:String,
+            enum:['flat','percentage','']
+        },
+        minPurchaseAmmount:{
+            type:Number,
+        },
+        maxDiscountAmmount:{
+            type:Number,
+        }
+    },
+    discount:{
+        type:Number,
+        required:true,
+    },
+    originalAmount:{
+        type:Number,
+        required:true,
     }
     
 })
