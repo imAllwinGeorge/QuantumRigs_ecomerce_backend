@@ -65,6 +65,8 @@ route.post('/add-coupon',couponController.addCoupon);
 
 route.delete('/delete-coupon/:couponId',couponController.deleteCoupon);
 
+route.get('/orderDetails',orderController.getOrderDetails)
+
 route.get('/logout',adminController.logout)
 
 module.exports = route

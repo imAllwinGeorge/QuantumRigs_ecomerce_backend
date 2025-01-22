@@ -193,7 +193,7 @@ const getOrders = async (req, res) => {
     if (!orderDetails) {
       return res.status(403).json("no orders found");
     }
-
+    console.log(orderDetails[0])
     const orders = await Promise.all(
       orderDetails.map(async (item) => {
         const userDetails = await User.findById(
@@ -208,12 +208,14 @@ const getOrders = async (req, res) => {
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
             _id: item?._id,
+            discount:item?.discount,
+            couponDetails:item?.couponDetails
           };
         });
       })
     );
     const allOrders = orders.flat();
-    console.log(allOrders);
+    // console.log(allOrders[0]);
 
     const productDetails = await Promise.all(
       allOrders.map(async (item) => {
@@ -231,6 +233,8 @@ const getOrders = async (req, res) => {
           paymentMethod: item?.paymentMethod,
           orderId: item?._id,
           productOrderId: item?.product?._id,
+          discount:item?.discount,
+            couponDetails:item?.couponDetails
         };
       })
     );
@@ -286,7 +290,48 @@ const verifyRazorpayPayment = async(req,res)=>{
   } else {
     res.status(400).json({ success: false, message: "Invalid payment signature" });
   }
-}
+};
+
+const getOrderDetails = async (req, res) => {
+  try {
+    // Fetch all orders
+    let orders = await Order.find();
+
+    // Process each order asynchronously
+    orders = await Promise.all(
+      orders.map(async (order) => {
+        // Fetch user details
+        const user = await User.findById(order.userId, "firstName");
+        // Fetch product and variant details for each item
+        const items = await Promise.all(
+          order.items.map(async (item) => {
+            const product = await Product.findById(item.productId); // Fetch full product details
+            const variant = await Variant.findById(item.variantId); // Fetch full variant details
+
+            return {
+              ...item.toObject(), // Retain original item properties
+              productDetails: product || {}, // Add full product details
+              variantDetails: variant || {}, // Add full variant details
+            };
+          })
+        );
+
+        // Return the enriched order object
+        return {
+          ...order.toObject(), // Retain original order properties
+          userName: user?.firstName || "Unknown User", // Add user name
+          items, // Replace items with enriched items
+        };
+      })
+    );
+    // Respond with the enriched orders
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error("get order details", error.message);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
 
 module.exports = {
   orderProducts,
@@ -296,4 +341,5 @@ module.exports = {
   changeStatus,
   razorpayCreateOrder,
   verifyRazorpayPayment,
+  getOrderDetails,
 };
