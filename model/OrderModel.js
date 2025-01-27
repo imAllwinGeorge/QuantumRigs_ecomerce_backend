@@ -28,6 +28,11 @@ const orderSchema = new Schema({
             enum: ["Pending", "Shipped", "Delivered", "Cancelled","Returned"],
             default: "Pending", // Default status for each product
         },
+        message:{
+            type:String,
+            required:false,
+            default:''
+        }
 
 
     }],

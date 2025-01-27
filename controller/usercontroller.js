@@ -358,7 +358,7 @@ const editUser = async (req, res) => {
       { new: true }
     ).select("-password");
     console.log("updatedUser edituser", updatedUser);
-    return res.status(200).json(updatedUser);
+    return res.status(200).json({updatedUser,message:"user data updated"});
   } catch (error) {
     console.log(error.message);
   }

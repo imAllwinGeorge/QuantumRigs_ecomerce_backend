@@ -27,6 +27,7 @@ const addToCart = async (req, res) => {
         cart.items.push({ productId, variantId });
       }
       await cart.save();
+      res.status(200).json("product added to cart")
     }
   } catch (error) {
     console.log("addToCart", error.message);

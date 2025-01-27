@@ -126,7 +126,7 @@ const blockUser = async (req, res) => {
   );
 
   if (user) {
-    return res.status(200).json(user);
+    return res.status(200).json({user,message:'user blocked'});
   }
 };
 
@@ -140,7 +140,7 @@ const unBlockUser = async (req, res) => {
   );
 
   if (user) {
-    return res.status(200).json(user);
+    return res.status(200).json({user,message:"user unblocked"});
   }
 };
 

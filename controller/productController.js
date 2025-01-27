@@ -276,6 +276,7 @@ const returnProduct = async (req, res) => {
       quantity,
       userId,
       totalAmount,
+      message
     } = req.body;
 
     const updateQuantity = await Variant.findByIdAndUpdate(
@@ -289,7 +290,7 @@ const returnProduct = async (req, res) => {
 
     order.items = order.items.map((item) =>
       item._id.toString() === productOrderId
-        ? { ...item.toObject(), status: "Returned" }
+        ? { ...item.toObject(), status: "Returned",message }
         : item
     );
     await order.save();

@@ -1,12 +1,12 @@
 const razorpayInstance = require("../config/razorpayInstance");
-const crypto = require('crypto')
+const crypto = require("crypto");
 const Cart = require("../model/CartModel");
 const Order = require("../model/OrderModel");
 const Product = require("../model/productModel");
 const User = require("../model/userSchema");
 const Variant = require("../model/variantModel");
 const Wallet = require("../model/walletModel");
-require('dotenv').config()
+require("dotenv").config();
 
 const orderProducts = async (req, res) => {
   try {
@@ -21,7 +21,7 @@ const orderProducts = async (req, res) => {
       items,
     } = req.body;
 
-    const orderProduct = await Order.create({
+    let orderProduct = await Order.create({
       userId,
       shippingAddress,
       paymentMethod,
@@ -30,7 +30,7 @@ const orderProducts = async (req, res) => {
       discount,
       originalAmount,
       items,
-    });
+    },);
     if (!orderProduct) {
       return res.status(403).json("product cannot be ordered");
     }
@@ -47,8 +47,40 @@ const orderProducts = async (req, res) => {
       { items: [] },
       { new: true }
     );
+   const orderedProducts = {shippingAddress:orderProduct.shippingAddress,
+    paymentMethod:orderProduct.paymentMethod,
+    totalAmount:orderProduct.totalAmount,
+    couponDetails:orderProduct.couponDetails,
+    discount:orderProduct.discount,
+    originalAmount:orderProduct.originalAmount,
+    _id:orderProduct._id,
+    createdAt:orderProduct.createdAt,
+    items:await Promise.all(
+      orderProduct?.items.map(async (item) => {
+        // const products = await Product.findById(
+        //   item.productId,
+        //   "productName aciteOffer aciteOfferType"
+        // ).populate("subCategoryId", "subCategory").populate("brandId","brand");
+        // item.productId = products
+        
+        // return { ...item,productId : products };
 
-    res.status(200).json("order placed successfully");
+        return {...item.toObject(),productId: await Product.findById(
+            item.productId,
+            "productName aciteOffer aciteOfferType images"
+          ).populate("subCategoryId", "subCategory").populate("brandId","brand")
+         
+          }
+        
+      })
+    )
+   }
+    console.log('mmmmmmmmmmmmmmmmmmnnnnnnnnnn',orderProduct)
+   console.log("lllllllllllllllllllllllllllll",orderedProducts)
+
+    res
+      .status(200)
+      .json({ orderedProducts, message: "order placed successfully" });
   } catch (error) {
     console.log("order products", error.message);
     res.status(500).json("some thing went wrong");
@@ -72,12 +104,12 @@ const fetchOrderDetails = async (req, res) => {
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
             _id: item?._id,
-            totalAmount:item?.totalAmount,
-            couponDetails:item?.couponDetails,
-            discount:item?.discount,
-            originalAmount:item?.originalAmount
+            totalAmount: item?.totalAmount,
+            couponDetails: item?.couponDetails,
+            discount: item?.discount,
+            originalAmount: item?.originalAmount,
+            orderDate: item?.createdAt
           };
-
         });
       })
       .flat();
@@ -86,8 +118,8 @@ const fetchOrderDetails = async (req, res) => {
       orders.map(async (item) => {
         const product = await Product.findById(
           item?.product?.productId
-        ).populate("brandId", "brand");
-        const variant = await Variant.findById(item?.product?.variantId);
+        ).populate("brandId", "brand" );
+        const variant = await Variant.findById(item?.product?.variantId );
         return {
           productId: product,
           variantId: variant,
@@ -97,15 +129,15 @@ const fetchOrderDetails = async (req, res) => {
           paymentMethod: item?.paymentMethod,
           orderId: item?._id,
           productOrderId: item?.product?._id,
-          totalAmount:item?.totalAmount,
-            couponDetails:item?.couponDetails,
-            discount:item?.discount,
-            originalAmount:item?.originalAmount
-
+          totalAmount: item?.totalAmount,
+          couponDetails: item?.couponDetails,
+          discount: item?.discount,
+          originalAmount: item?.originalAmount,
+          orderDate:item?.orderDate
         };
       })
     );
-    console.log("23333", productDetails[0]);
+    // console.log("23333", productDetails[0]);
     res.status(200).json(productDetails);
   } catch (error) {
     console.log("fetch order product", error.message);
@@ -115,20 +147,34 @@ const fetchOrderDetails = async (req, res) => {
 
 const cancelProduct = async (req, res) => {
   try {
-    const {orderId,productOrderId,paymentMethod,productId,variantId,quantity,userId,totalAmount} = req.body;
-    const updateQuantity = await Variant.findByIdAndUpdate(variantId,{$inc:{"quantity":quantity}},{new:true})
+    const {
+      orderId,
+      productOrderId,
+      paymentMethod,
+      productId,
+      variantId,
+      quantity,
+      userId,
+      totalAmount,
+      message
+    } = req.body;
+    console.log('qwertyuiop',req.body)
+    const updateQuantity = await Variant.findByIdAndUpdate(
+      variantId,
+      { $inc: { quantity: quantity } },
+      { new: true }
+    );
     const cancelOrder = await Order.findOne({ _id: orderId });
     if (!cancelOrder) {
       return res.status(404).json("order not found");
     }
     cancelOrder.items = cancelOrder.items.map((item) =>
       item._id.toString() === productOrderId
-        ? { ...item, status: "Cancelled" }
+        ? { ...item, status: "Cancelled",message }
         : item
     );
-    console.log(cancelOrder);
+    console.log("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",cancelOrder);
     await cancelOrder.save();
-
 
     if (paymentMethod === "online") {
       const wallet = await Wallet.findOne({ userId });
@@ -143,8 +189,7 @@ const cancelProduct = async (req, res) => {
             },
           ],
         });
-      } 
-      else {
+      } else {
         let details = {
           type: "credit",
           amount: totalAmount,
@@ -174,12 +219,10 @@ const cancelProduct = async (req, res) => {
     //   await order.save();
     //   return res.status(200).json({ message: "product returned successfull" });
     // }
-    res
-      .status(200)
-      .json({
-        message: "product cancelled successfully",
-        updatedOrder: cancelOrder,
-      });
+    res.status(200).json({
+      message: "product cancelled successfully",
+      updatedOrder: cancelOrder,
+    });
   } catch (error) {
     console.log("cancel product", error.message);
     res.status(500).json("something went wrong");
@@ -193,7 +236,7 @@ const getOrders = async (req, res) => {
     if (!orderDetails) {
       return res.status(403).json("no orders found");
     }
-    console.log(orderDetails[0])
+    console.log(orderDetails[0]);
     const orders = await Promise.all(
       orderDetails.map(async (item) => {
         const userDetails = await User.findById(
@@ -208,8 +251,8 @@ const getOrders = async (req, res) => {
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
             _id: item?._id,
-            discount:item?.discount,
-            couponDetails:item?.couponDetails
+            discount: item?.discount,
+            couponDetails: item?.couponDetails,
           };
         });
       })
@@ -233,8 +276,8 @@ const getOrders = async (req, res) => {
           paymentMethod: item?.paymentMethod,
           orderId: item?._id,
           productOrderId: item?.product?._id,
-          discount:item?.discount,
-            couponDetails:item?.couponDetails
+          discount: item?.discount,
+          couponDetails: item?.couponDetails,
         };
       })
     );
@@ -277,8 +320,9 @@ const razorpayCreateOrder = async (req, res) => {
   }
 };
 
-const verifyRazorpayPayment = async(req,res)=>{
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+const verifyRazorpayPayment = async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    req.body;
 
   const generatedSignature = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -286,9 +330,13 @@ const verifyRazorpayPayment = async(req,res)=>{
     .digest("hex");
 
   if (generatedSignature === razorpay_signature) {
-    res.status(200).json({ success: true, message: "Payment verified successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Payment verified successfully" });
   } else {
-    res.status(400).json({ success: false, message: "Invalid payment signature" });
+    res
+      .status(400)
+      .json({ success: false, message: "Invalid payment signature" });
   }
 };
 
@@ -331,7 +379,6 @@ const getOrderDetails = async (req, res) => {
     res.status(500).json({ message: "Something went wrong" });
   }
 };
-
 
 module.exports = {
   orderProducts,
