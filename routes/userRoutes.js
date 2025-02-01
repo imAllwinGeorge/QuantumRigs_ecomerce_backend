@@ -77,6 +77,10 @@ route.get("/get-wallet/:userId",walletController.getWalletHistory);
 
 route.post("/return-product",productController.returnProduct);
 
+route.patch("/change-payment-status/:orderId",orderController.changePaymentStatus);
+
+route.get("/category/products",productController.categoryFetch);
+
 route.get('/userlogout',userController.logout);
 
 

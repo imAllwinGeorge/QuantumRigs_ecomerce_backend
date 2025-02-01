@@ -150,7 +150,7 @@ const login = async (req, res) => {
     const { googleId } = req.body;
     if (googleId) {
       const user = await User.findOne({ googleId });
-      console.log(user.firstName);
+      console.log(user);
       if (user.isBlocked) {
         return res.status(403).json("user blocked");
       }

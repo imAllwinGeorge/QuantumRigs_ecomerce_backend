@@ -7,6 +7,7 @@ const path = require("path");
 const Category = require("../model/categorySchema");
 const Order = require("../model/OrderModel");
 const Wallet = require("../model/walletModel");
+const SubCagetory = require("../model/subCategories");
 
 const getProductPage = async (req, res) => {
   try {
@@ -347,6 +348,21 @@ const returnProduct = async (req, res) => {
   }
 };
 
+const categoryFetch = async (req, res) => {
+  try {
+    const products = await Product.find().populate("subCategoryId", "subCategory");
+    const subCategoriesFetch = await SubCagetory.find();
+    const subCategories = subCategoriesFetch.map((subCategory)=>{
+      return subCategory.subCategory
+    })
+    console.log('jjdfhdfght7ywgdfjjksf',subCategories)
+    res.status(200).json({message:'products fetched',products,subCategories})
+  } catch (error) {
+    console.log('categoryfetch',error.message);
+    res.status(500).json({message:'something went wrong'})
+  }
+}
+
 module.exports = {
   getProductPage,
   addProduct,
@@ -359,4 +375,5 @@ module.exports = {
   editProduct,
   updateVariant,
   returnProduct,
+  categoryFetch,
 };

@@ -48,6 +48,12 @@ const orderSchema = new Schema({
         enum:["COD","online"],
         required:true,
     },
+    paymentStatus:{
+        type:String,
+        // required:true,
+        enum:["pending","paid"],
+        default:"pending"
+    },
     totalAmount:{
         type:Number,
         required:true,

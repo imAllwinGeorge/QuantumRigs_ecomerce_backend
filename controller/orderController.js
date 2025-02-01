@@ -6,6 +6,7 @@ const Product = require("../model/productModel");
 const User = require("../model/userSchema");
 const Variant = require("../model/variantModel");
 const Wallet = require("../model/walletModel");
+const SubCategory = require("../model/subCategories")
 require("dotenv").config();
 
 const orderProducts = async (req, res) => {
@@ -13,6 +14,7 @@ const orderProducts = async (req, res) => {
     const {
       userId,
       paymentMethod,
+      paymentStatus,
       totalAmount,
       shippingAddress,
       couponDetails,
@@ -25,6 +27,7 @@ const orderProducts = async (req, res) => {
       userId,
       shippingAddress,
       paymentMethod,
+      paymentStatus,
       totalAmount,
       couponDetails,
       discount,
@@ -103,6 +106,7 @@ const fetchOrderDetails = async (req, res) => {
             product,
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
+            paymentStatus:item?.paymentStatus,
             _id: item?._id,
             totalAmount: item?.totalAmount,
             couponDetails: item?.couponDetails,
@@ -127,6 +131,7 @@ const fetchOrderDetails = async (req, res) => {
           status: item?.product?.status,
           shippingAddress: item?.shippingAddress,
           paymentMethod: item?.paymentMethod,
+          paymentStatus: item?.paymentStatus,
           orderId: item?._id,
           productOrderId: item?.product?._id,
           totalAmount: item?.totalAmount,
@@ -250,6 +255,7 @@ const getOrders = async (req, res) => {
             userDetails,
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
+            paymentStatus: item?.paymentStatus,
             _id: item?._id,
             discount: item?.discount,
             couponDetails: item?.couponDetails,
@@ -274,6 +280,7 @@ const getOrders = async (req, res) => {
           userDetails: item?.userDetails,
           shippingAddress: item?.shippingAddress,
           paymentMethod: item?.paymentMethod,
+          paymentStatus: item?.paymentStatus,
           orderId: item?._id,
           productOrderId: item?.product?._id,
           discount: item?.discount,
@@ -293,11 +300,12 @@ const changeStatus = async (req, res) => {
   try {
     const { status, orderId, productOrderId } = req.params;
     console.log(status, orderId, productOrderId);
-    const order = await Order.findById(orderId);
+    const order = await Order.findByIdAndUpdate(orderId,{$set:{paymentStatus:"paid"}},{new:true});
     order.items = order.items.map((item) =>
       item._id.toString() === productOrderId ? { ...item, status } : item
     );
     await order.save();
+    
     res.status(200).json(order);
   } catch (error) {
     console.log("changeStatus", error.message);
@@ -306,6 +314,7 @@ const changeStatus = async (req, res) => {
 };
 
 const razorpayCreateOrder = async (req, res) => {
+  console.log('jjfggywh',req.body)
   const { amount, currency, receipt } = req.body;
 
   try {
@@ -380,6 +389,35 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
+const fetchToplist = async (req,res) => {
+  try {
+    const topTenProducts = await Order.aggregate([{$unwind:"$items"},{$group:{_id:"$items.productId",count:{$sum:1}}},{$sort:{count:-1}},{$limit:10}])
+    const topTenDetails= await Promise.all(topTenProducts.map(async(item)=>{
+     return{productDetails: await Product.findById(item._id,"productName ").populate("subCategoryId","subCategory").populate("brandId","brand"),
+      count:item.count
+     }
+    }))
+    console.log("jjjjjjjjjjjjjjhhhhhhhhhhhhhgggggggggggfffffffff",topTenProducts)
+   console.log("jjjjjjjjjjjjjjjhhhhhhhhhhhhhhhhgggggggggggggg",topTenDetails)
+    res.status(200).json({topTenDetails})
+  } catch (error) {
+    console.log("fetch top list ",error.message);
+    res.status(500).json("something went wrong")
+  }
+}
+
+const changePaymentStatus = async (req,res) => {
+  try {
+    const {orderId} = req.params;
+    const changeStatus = await Order.findByIdAndUpdate(orderId,{$set:{paymentStatus:"paid"}},{new:true});
+    console.log("online payment changed status",changeStatus)
+    res.status(200).json({message:"payment status changed"})
+  } catch (error) {
+    console.log("change payment status",error.message);
+    res.status(500).json({message:"something went wrong"})
+  }
+}
+
 module.exports = {
   orderProducts,
   fetchOrderDetails,
@@ -389,4 +427,6 @@ module.exports = {
   razorpayCreateOrder,
   verifyRazorpayPayment,
   getOrderDetails,
+  fetchToplist,
+  changePaymentStatus,
 };
