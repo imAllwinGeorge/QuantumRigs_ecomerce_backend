@@ -31,6 +31,7 @@ const signup = async (req, res) => {
       });
 
       // await user.save();
+      console.log("user signup ",user)
 
       const token = await jwt.sign({ _id: user._id }, secretKey, {
         expiresIn: "30d",
@@ -38,7 +39,7 @@ const signup = async (req, res) => {
       res.cookie("user_token", token, {
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        secure: false, // Set to true in production with HTTPS
+        secure:  process.env.NODE_ENV === "production", // Set to true in production with HTTPS
         sameSite: "lax",
       });
 
@@ -107,7 +108,7 @@ const googleSignUp = async (req, res) => {
 
 const verifyToken = async (req, res) => {
   const userToken = req.cookies.user_token;
-  // console.log("usertoken verification", userToken);
+  console.log("usertoken verification", userToken);
   if (!userToken) {
     return res.status(401).json(userToken);
   }
@@ -127,7 +128,7 @@ const verifyToken = async (req, res) => {
     //  req.user = decoded;
     console.log(decoded._id)
     const user = await User.findOne( {_id: decoded._id });
-    // console.log("is active user", user);
+    console.log("is active user", user);
     if (user.isBlocked) {
       return res
         .status(401)
@@ -466,14 +467,15 @@ const deleteAddress = async (req,res)=>{
 }
 
 const logout = (req, res) => {
-  console.log(req.session);
+  console.log("check the session",req.session);
+  console.log("what is this",req.user)
   if (req.user) {
     req.logOut(() => {
       console.log(req.user);
       return res.json("logout success");
     });
   } else if (req.session) {
-    console.log(req.session);
+    console.log("enthokeya ee kochu keralathil nadakunne",req.session);
     req.session.destroy(() => {
       // res.cookie("user_token","", {
       //   httpOnly: true,
@@ -487,7 +489,7 @@ const logout = (req, res) => {
         httpOnly: true, // Keep HttpOnly flag
         secure: process.env.NODE_ENV === "production", // Set secure flag for production (HTTPS)
         expires: new Date(0), // Set expiry to the past
-        sameSite: "strict", // Optional: to prevent CSRF in certain contexts
+        sameSite: "lax", // Optional: to prevent CSRF in certain contexts
       });
       console.log(req.session);
       return res.status(200).json("normal user logout success full");

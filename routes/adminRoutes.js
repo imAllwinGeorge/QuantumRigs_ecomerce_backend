@@ -57,7 +57,7 @@ route.put('/updateVariant/:variantId',salePriceMiddleWare.findSalePrice,productC
 
 route.get('/get-orders',orderController.getOrders);
 
-route.patch('/change-status/:status/:orderId/:productOrderId',orderController.changeStatus);
+route.patch('/change-status/:status/:orderId/:productOrderId/:variantId/:quantity',orderController.changeStatus);
 
 route.get('/get-coupons',couponController.getCoupons);
 

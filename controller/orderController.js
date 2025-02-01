@@ -258,6 +258,7 @@ const getOrders = async (req, res) => {
             paymentStatus: item?.paymentStatus,
             _id: item?._id,
             discount: item?.discount,
+            totalAmount: item?.totalAmount,
             couponDetails: item?.couponDetails,
           };
         });
@@ -284,6 +285,7 @@ const getOrders = async (req, res) => {
           orderId: item?._id,
           productOrderId: item?.product?._id,
           discount: item?.discount,
+          totalAmount: item?.totalAmount,
           couponDetails: item?.couponDetails,
         };
       })
@@ -298,13 +300,18 @@ const getOrders = async (req, res) => {
 
 const changeStatus = async (req, res) => {
   try {
-    const { status, orderId, productOrderId } = req.params;
-    console.log(status, orderId, productOrderId);
+    const { status, orderId, productOrderId, variantId, quantity } = req.params;
+    console.log(status, orderId, productOrderId,variantId, quantity);
     const order = await Order.findByIdAndUpdate(orderId,{$set:{paymentStatus:"paid"}},{new:true});
     order.items = order.items.map((item) =>
       item._id.toString() === productOrderId ? { ...item, status } : item
     );
     await order.save();
+
+    if(status === "Cancelled"){
+      const updateQuantity = await Variant.findByIdAndUpdate(variantId,{$inc:{quantity}},{new:true});
+      
+    }
     
     res.status(200).json(order);
   } catch (error) {
