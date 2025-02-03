@@ -277,7 +277,7 @@ const returnProduct = async (req, res) => {
       quantity,
       userId,
       totalAmount,
-      message
+      message,
     } = req.body;
 
     const updateQuantity = await Variant.findByIdAndUpdate(
@@ -287,18 +287,51 @@ const returnProduct = async (req, res) => {
     );
 
     // change order status
-    const order = await Order.findById(orderId);
+    let order = await Order.findById(orderId);
 
-    order.items = order.items.map((item) =>
-      item._id.toString() === productOrderId
-        ? { ...item.toObject(), status: "Returned",message }
-        : item
-    );
-    await order.save();
+    if (
+      order.totalAmount - totalAmount <
+      order.couponDetails.minPurchaseAmmount
+    ) {
+      // save wallet transaction
 
-    // save wallet transaction
+      const wallet = await Wallet.findOne({ userId });
+      if (!wallet) {
+        await Wallet.create({
+          userId,
+          transactionDetails: [
+            {
+              type: "credit",
+              amount: totalAmount - order.discount,
+              description: `refund for returning product, product orderId ${productOrderId}`,
+            },
+          ],
+        });
+      } else {
+        let details = {
+          type: "credit",
+          amount: totalAmount - order.discount,
+          description: `refund for returning product, product orderId ${productOrderId}`,
+        };
 
-    // if (paymentMethod === "online") {
+        wallet.transactionDetails.push(details);
+        await wallet.save();
+      }
+      order = {
+        ...order.toObject(),
+        totalAmount: order.totalAmount - totalAmount + order.discount,
+        couponDetails: {
+          couponCode: "",
+          couponOffer: 0,
+          couponType: "",
+          maxDiscountAmmount: 0,
+          minPurchaseAmmount: 0,
+        },
+        discount: 0,
+      };
+    } else {
+      // save wallet transaction
+
       const wallet = await Wallet.findOne({ userId });
       if (!wallet) {
         await Wallet.create({
@@ -311,8 +344,7 @@ const returnProduct = async (req, res) => {
             },
           ],
         });
-      } 
-      else {
+      } else {
         let details = {
           type: "credit",
           amount: totalAmount,
@@ -321,27 +353,22 @@ const returnProduct = async (req, res) => {
 
         wallet.transactionDetails.push(details);
         await wallet.save();
-        return res.status(200).json({ message: "product returned" });
       }
-    // }
-    //  else {
-    //   const updateQuantity = await Variant.findByIdAndUpdate(
-    //     variantId,
-    //     { $inc: { quantity: quantity } },
-    //     { new: true }
-    //   );
+      order = {
+        ...order.toObject(),
+        totalAmount: order.totalAmount - totalAmount,
+      };
+    }
 
-    //   // change order status
-    //   const order = await Order.findById(orderId);
+    order.items = order.items.map((item) =>
+      item._id.toString() === productOrderId
+        ? { ...item, status: "Returned", message }
+        : item
+    );
 
-    //   order.items = order.items.map((item) =>
-    //     item._id.toString() === productOrderId
-    //       ? { ...item.toObject(), status: "Returned" }
-    //       : item
-    //   );
-    //   await order.save();
-    //   return res.status(200).json({ message: "product returned successfull" });
-    // }
+    await Order.findByIdAndUpdate(orderId, { $set: order });
+
+    res.status(200).json({ message: "product returned" });
   } catch (error) {
     console.log("return product", error.message);
     res.status(500).json({ message: "something went wrong" });
@@ -350,18 +377,23 @@ const returnProduct = async (req, res) => {
 
 const categoryFetch = async (req, res) => {
   try {
-    const products = await Product.find().populate("subCategoryId", "subCategory");
+    const products = await Product.find().populate(
+      "subCategoryId",
+      "subCategory"
+    );
     const subCategoriesFetch = await SubCagetory.find();
-    const subCategories = subCategoriesFetch.map((subCategory)=>{
-      return subCategory.subCategory
-    })
-    console.log('jjdfhdfght7ywgdfjjksf',subCategories)
-    res.status(200).json({message:'products fetched',products,subCategories})
+    const subCategories = subCategoriesFetch.map((subCategory) => {
+      return subCategory.subCategory;
+    });
+    console.log("jjdfhdfght7ywgdfjjksf", subCategories);
+    res
+      .status(200)
+      .json({ message: "products fetched", products, subCategories });
   } catch (error) {
-    console.log('categoryfetch',error.message);
-    res.status(500).json({message:'something went wrong'})
+    console.log("categoryfetch", error.message);
+    res.status(500).json({ message: "something went wrong" });
   }
-}
+};
 
 module.exports = {
   getProductPage,

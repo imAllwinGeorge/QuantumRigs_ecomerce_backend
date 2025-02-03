@@ -6,7 +6,7 @@ const Product = require("../model/productModel");
 const User = require("../model/userSchema");
 const Variant = require("../model/variantModel");
 const Wallet = require("../model/walletModel");
-const SubCategory = require("../model/subCategories")
+const SubCategory = require("../model/subCategories");
 require("dotenv").config();
 
 const orderProducts = async (req, res) => {
@@ -23,6 +23,21 @@ const orderProducts = async (req, res) => {
       items,
     } = req.body;
 
+    const verifyQuantity = await Promise.all(
+      items.map(async (item) => {
+        return {
+          quantity: item.quantity,
+          actualQuantity: await Variant.findById(item.variantId, "quantity"),
+        };
+      })
+    );
+    console.log("quantity managment", verifyQuantity);
+    for (const item of verifyQuantity) {
+      if (item.quantity > item.actualQuantity.quantity) {
+        return res.status(409).json({ message: "quantity missmatch" });
+      }
+    }
+
     let orderProduct = await Order.create({
       userId,
       shippingAddress,
@@ -33,7 +48,7 @@ const orderProducts = async (req, res) => {
       discount,
       originalAmount,
       items,
-    },);
+    });
     if (!orderProduct) {
       return res.status(403).json("product cannot be ordered");
     }
@@ -50,36 +65,39 @@ const orderProducts = async (req, res) => {
       { items: [] },
       { new: true }
     );
-   const orderedProducts = {shippingAddress:orderProduct.shippingAddress,
-    paymentMethod:orderProduct.paymentMethod,
-    totalAmount:orderProduct.totalAmount,
-    couponDetails:orderProduct.couponDetails,
-    discount:orderProduct.discount,
-    originalAmount:orderProduct.originalAmount,
-    _id:orderProduct._id,
-    createdAt:orderProduct.createdAt,
-    items:await Promise.all(
-      orderProduct?.items.map(async (item) => {
-        // const products = await Product.findById(
-        //   item.productId,
-        //   "productName aciteOffer aciteOfferType"
-        // ).populate("subCategoryId", "subCategory").populate("brandId","brand");
-        // item.productId = products
-        
-        // return { ...item,productId : products };
+    const orderedProducts = {
+      shippingAddress: orderProduct.shippingAddress,
+      paymentMethod: orderProduct.paymentMethod,
+      totalAmount: orderProduct.totalAmount,
+      couponDetails: orderProduct.couponDetails,
+      discount: orderProduct.discount,
+      originalAmount: orderProduct.originalAmount,
+      _id: orderProduct._id,
+      createdAt: orderProduct.createdAt,
+      items: await Promise.all(
+        orderProduct?.items.map(async (item) => {
+          // const products = await Product.findById(
+          //   item.productId,
+          //   "productName aciteOffer aciteOfferType"
+          // ).populate("subCategoryId", "subCategory").populate("brandId","brand");
+          // item.productId = products
 
-        return {...item.toObject(),productId: await Product.findById(
-            item.productId,
-            "productName aciteOffer aciteOfferType images"
-          ).populate("subCategoryId", "subCategory").populate("brandId","brand")
-         
-          }
-        
-      })
-    )
-   }
-    console.log('mmmmmmmmmmmmmmmmmmnnnnnnnnnn',orderProduct)
-   console.log("lllllllllllllllllllllllllllll",orderedProducts)
+          // return { ...item,productId : products };
+
+          return {
+            ...item.toObject(),
+            productId: await Product.findById(
+              item.productId,
+              "productName aciteOffer aciteOfferType images"
+            )
+              .populate("subCategoryId", "subCategory")
+              .populate("brandId", "brand"),
+          };
+        })
+      ),
+    };
+    console.log("mmmmmmmmmmmmmmmmmmnnnnnnnnnn", orderProduct);
+    console.log("lllllllllllllllllllllllllllll", orderedProducts);
 
     res
       .status(200)
@@ -106,13 +124,13 @@ const fetchOrderDetails = async (req, res) => {
             product,
             shippingAddress: item?.shippingAddress,
             paymentMethod: item?.paymentMethod,
-            paymentStatus:item?.paymentStatus,
+            paymentStatus: item?.paymentStatus,
             _id: item?._id,
             totalAmount: item?.totalAmount,
             couponDetails: item?.couponDetails,
             discount: item?.discount,
             originalAmount: item?.originalAmount,
-            orderDate: item?.createdAt
+            orderDate: item?.createdAt,
           };
         });
       })
@@ -122,13 +140,14 @@ const fetchOrderDetails = async (req, res) => {
       orders.map(async (item) => {
         const product = await Product.findById(
           item?.product?.productId
-        ).populate("brandId", "brand" );
-        const variant = await Variant.findById(item?.product?.variantId );
+        ).populate("brandId", "brand");
+        const variant = await Variant.findById(item?.product?.variantId);
         return {
           productId: product,
           variantId: variant,
           quantity: item?.product?.quantity,
           status: item?.product?.status,
+          message: item?.product?.message,
           shippingAddress: item?.shippingAddress,
           paymentMethod: item?.paymentMethod,
           paymentStatus: item?.paymentStatus,
@@ -138,7 +157,7 @@ const fetchOrderDetails = async (req, res) => {
           couponDetails: item?.couponDetails,
           discount: item?.discount,
           originalAmount: item?.originalAmount,
-          orderDate:item?.orderDate
+          orderDate: item?.orderDate,
         };
       })
     );
@@ -161,69 +180,103 @@ const cancelProduct = async (req, res) => {
       quantity,
       userId,
       totalAmount,
-      message
+      message,
     } = req.body;
-    console.log('qwertyuiop',req.body)
+    console.log("qwertyuiop", req.body);
     const updateQuantity = await Variant.findByIdAndUpdate(
       variantId,
       { $inc: { quantity: quantity } },
       { new: true }
     );
-    const cancelOrder = await Order.findOne({ _id: orderId });
+    let cancelOrder = await Order.findOne({ _id: orderId });
+
     if (!cancelOrder) {
       return res.status(404).json("order not found");
     }
-    cancelOrder.items = cancelOrder.items.map((item) =>
-      item._id.toString() === productOrderId
-        ? { ...item, status: "Cancelled",message }
-        : item
-    );
-    console.log("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",cancelOrder);
-    await cancelOrder.save();
 
-    if (paymentMethod === "online") {
-      const wallet = await Wallet.findOne({ userId });
-      if (!wallet) {
-        await Wallet.create({
-          userId,
-          transactionDetails: [
-            {
-              type: "credit",
-              amount: totalAmount,
-              description: `refund for cancelling product, product orderId ${productOrderId}`,
-            },
-          ],
-        });
-      } else {
-        let details = {
-          type: "credit",
-          amount: totalAmount,
-          description: `refund for cancelling product, product orderId ${productOrderId}`,
-        };
+    if (
+      cancelOrder.totalAmount - totalAmount + cancelOrder.discount <
+      cancelOrder.couponDetails.minPurchaseAmmount
+    ) {
+      if (paymentMethod === "online") {
+        const wallet = await Wallet.findOne({ userId });
+        if (!wallet) {
+          await Wallet.create({
+            userId,
+            transactionDetails: [
+              {
+                type: "credit",
+                amount: totalAmount - cancelOrder.discount,
+                description: `refund for cancelling product, product orderId ${productOrderId}`,
+              },
+            ],
+          });
+        } else {
+          let details = {
+            type: "credit",
+            amount: totalAmount - cancelOrder.discount,
+            description: `refund for cancelling product, product orderId ${productOrderId}`,
+          };
 
-        wallet.transactionDetails.push(details);
-        await wallet.save();
-        return res.status(200).json({ message: "product cancelled" });
+          wallet.transactionDetails.push(details);
+          await wallet.save();
+        }
+      }
+
+      cancelOrder = {
+        ...cancelOrder.toObject(),
+        totalAmount:
+          cancelOrder.totalAmount - totalAmount + cancelOrder.discount,
+        couponDetails: {
+          couponCode: "",
+          couponOffer: 0,
+          couponType: "",
+          maxDiscountAmmount: 0,
+          minPurchaseAmmount: 0,
+        },
+        discount: 0,
+      };
+    } else {
+      cancelOrder = {
+        ...cancelOrder.toObject(),
+
+        totalAmount: cancelOrder.totalAmount - totalAmount,
+      };
+
+      if (paymentMethod === "online") {
+        const wallet = await Wallet.findOne({ userId });
+        if (!wallet) {
+          await Wallet.create({
+            userId,
+            transactionDetails: [
+              {
+                type: "credit",
+                amount: totalAmount,
+                description: `refund for cancelling product, product orderId ${productOrderId}`,
+              },
+            ],
+          });
+        } else {
+          let details = {
+            type: "credit",
+            amount: totalAmount,
+            description: `refund for cancelling product, product orderId ${productOrderId}`,
+          };
+
+          wallet.transactionDetails.push(details);
+          await wallet.save();
+        }
       }
     }
-    //  else {
-    //   const updateQuantity = await Variant.findByIdAndUpdate(
-    //     variantId,
-    //     { $inc: { quantity: quantity } },
-    //     { new: true }
-    //   );
+    cancelOrder.items = cancelOrder.items.map((item) =>
+      item._id.toString() === productOrderId
+        ? { ...item, status: "Cancelled", message }
+        : item
+    );
+    console.log("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk", cancelOrder);
 
-    //   // change order status
-    //   const order = await Order.findById(orderId);
+    await Order.findByIdAndUpdate(orderId, { $set: cancelOrder });
 
-    //   order.items = order.items.map((item) =>
-    //     item._id.toString() === productOrderId
-    //       ? { ...item.toObject(), status: "Returned" }
-    //       : item
-    //   );
-    //   await order.save();
-    //   return res.status(200).json({ message: "product returned successfull" });
-    // }
     res.status(200).json({
       message: "product cancelled successfully",
       updatedOrder: cancelOrder,
@@ -278,6 +331,7 @@ const getOrders = async (req, res) => {
           variantId: variant,
           quantity: item?.product?.quantity,
           status: item?.product?.status,
+          message: item?.product?.message,
           userDetails: item?.userDetails,
           shippingAddress: item?.shippingAddress,
           paymentMethod: item?.paymentMethod,
@@ -301,27 +355,43 @@ const getOrders = async (req, res) => {
 const changeStatus = async (req, res) => {
   try {
     const { status, orderId, productOrderId, variantId, quantity } = req.params;
-    console.log(status, orderId, productOrderId,variantId, quantity);
-    const order = await Order.findByIdAndUpdate(orderId,{$set:{paymentStatus:"paid"}},{new:true});
+    const { message } = req.body;
+    console.log(status, orderId, productOrderId, variantId, quantity, message);
+    const order = await Order.findById(orderId);
+    console.log("order for change status", order);
     order.items = order.items.map((item) =>
-      item._id.toString() === productOrderId ? { ...item, status } : item
+      item._id.toString() === productOrderId
+        ? { ...item, status, message }
+        : item
     );
-    await order.save();
 
-    if(status === "Cancelled"){
-      const updateQuantity = await Variant.findByIdAndUpdate(variantId,{$inc:{quantity}},{new:true});
-      
+    await order.save();
+    if (order.paymentMethod === "COD" && status === "Delivered") {
+      const updatePaymentStatus = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: { paymentStatus: "paid" } },
+        { new: true }
+      );
+      console.log("order payment status updated", updatePaymentStatus);
     }
-    
+
+    if (status === "Cancelled") {
+      const updateQuantity = await Variant.findByIdAndUpdate(
+        variantId,
+        { $inc: { quantity } },
+        { new: true }
+      );
+    }
+
     res.status(200).json(order);
   } catch (error) {
-    console.log("changeStatus", error.message);
+    console.log("changeStatus", error);
     res.status(500).json("something went wrong");
   }
 };
 
 const razorpayCreateOrder = async (req, res) => {
-  console.log('jjfggywh',req.body)
+  console.log("jjfggywh", req.body);
   const { amount, currency, receipt } = req.body;
 
   try {
@@ -396,34 +466,51 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
-const fetchToplist = async (req,res) => {
+const fetchToplist = async (req, res) => {
   try {
-    const topTenProducts = await Order.aggregate([{$unwind:"$items"},{$group:{_id:"$items.productId",count:{$sum:1}}},{$sort:{count:-1}},{$limit:10}])
-    const topTenDetails= await Promise.all(topTenProducts.map(async(item)=>{
-     return{productDetails: await Product.findById(item._id,"productName ").populate("subCategoryId","subCategory").populate("brandId","brand"),
-      count:item.count
-     }
-    }))
-    console.log("jjjjjjjjjjjjjjhhhhhhhhhhhhhgggggggggggfffffffff",topTenProducts)
-   console.log("jjjjjjjjjjjjjjjhhhhhhhhhhhhhhhhgggggggggggggg",topTenDetails)
-    res.status(200).json({topTenDetails})
+    const topTenProducts = await Order.aggregate([
+      { $unwind: "$items" },
+      { $group: { _id: "$items.productId", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+    ]);
+    const topTenDetails = await Promise.all(
+      topTenProducts.map(async (item) => {
+        return {
+          productDetails: await Product.findById(item._id, "productName ")
+            .populate("subCategoryId", "subCategory")
+            .populate("brandId", "brand"),
+          count: item.count,
+        };
+      })
+    );
+    console.log(
+      "jjjjjjjjjjjjjjhhhhhhhhhhhhhgggggggggggfffffffff",
+      topTenProducts
+    );
+    console.log("jjjjjjjjjjjjjjjhhhhhhhhhhhhhhhhgggggggggggggg", topTenDetails);
+    res.status(200).json({ topTenDetails });
   } catch (error) {
-    console.log("fetch top list ",error.message);
-    res.status(500).json("something went wrong")
+    console.log("fetch top list ", error.message);
+    res.status(500).json("something went wrong");
   }
-}
+};
 
-const changePaymentStatus = async (req,res) => {
+const changePaymentStatus = async (req, res) => {
   try {
-    const {orderId} = req.params;
-    const changeStatus = await Order.findByIdAndUpdate(orderId,{$set:{paymentStatus:"paid"}},{new:true});
-    console.log("online payment changed status",changeStatus)
-    res.status(200).json({message:"payment status changed"})
+    const { orderId } = req.params;
+    const changeStatus = await Order.findByIdAndUpdate(
+      orderId,
+      { $set: { paymentStatus: "paid" } },
+      { new: true }
+    );
+    console.log("online payment changed status", changeStatus);
+    res.status(200).json({ message: "payment status changed" });
   } catch (error) {
-    console.log("change payment status",error.message);
-    res.status(500).json({message:"something went wrong"})
+    console.log("change payment status", error.message);
+    res.status(500).json({ message: "something went wrong" });
   }
-}
+};
 
 module.exports = {
   orderProducts,
