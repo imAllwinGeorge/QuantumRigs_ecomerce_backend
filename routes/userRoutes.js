@@ -81,6 +81,8 @@ route.patch("/change-payment-status/:orderId",orderController.changePaymentStatu
 
 route.get("/category/products",productController.categoryFetch);
 
+route.get("/more-orderDetails/:orderId",orderController.moreOrderDetails)
+
 route.get('/userlogout',userController.logout);
 
 

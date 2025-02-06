@@ -377,15 +377,38 @@ const returnProduct = async (req, res) => {
 
 const categoryFetch = async (req, res) => {
   try {
-    const products = await Product.find().populate(
-      "subCategoryId",
-      "subCategory"
-    );
+   
+
+    const products = await Product.aggregate([
+      {
+        $lookup: {
+          from: "varients",
+          foreignField: "productId",
+          localField: "_id",
+          as: "variants",
+        },
+      },
+      {
+        $lookup: {
+          from: "subcategories",
+          foreignField: "_id",
+          localField: "subCategoryId",
+          as: "subCategory",
+        },
+      },
+      {
+        $unwind: {
+          path: "$subCategory",
+          preserveNullAndEmptyArrays: true, // Keeps products without a subcategory
+        },
+      },
+    ]);
+
     const subCategoriesFetch = await SubCagetory.find();
     const subCategories = subCategoriesFetch.map((subCategory) => {
       return subCategory.subCategory;
     });
-    console.log("jjdfhdfght7ywgdfjjksf", subCategories);
+    console.log("jjdfhdfght7ywgdfjjksf", products, subCategories);
     res
       .status(200)
       .json({ message: "products fetched", products, subCategories });

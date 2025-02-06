@@ -11,10 +11,6 @@ const brandSchema = new Schema({
     description:{
         type:String,
     },
-    images:{
-        type:[String],
-        required:false,                                                 //should be true
-    },
     isListed:{
         type:Boolean,
         default:true,

@@ -512,6 +512,30 @@ const changePaymentStatus = async (req, res) => {
   }
 };
 
+const moreOrderDetails =  async (req, res) => {
+  try {
+    const {orderId} = req.params;
+    const order = await Order.findById(orderId);
+   let details = await Promise.all(order.items.map(async(item)=>{
+    const product = await Product.findById(item.productId,"productName").populate("brandId","brand");
+    const variant = await Variant.findById(item.variantId,"attributes salePrice");
+    console.log("moreproduct details dertails",product,variant)
+    return{...item.toObject(),
+     productId: product,
+     variantId: variant
+      
+    }
+   }
+   
+  ))
+    console.log("more order details",details)
+    return res.status(200).json({details,message:"more order details"})
+  } catch (error) {
+    console.log("moreOrder details",error.message);
+    res.status(500).json({message:"something went wrong"});
+  }
+}
+
 module.exports = {
   orderProducts,
   fetchOrderDetails,
@@ -523,4 +547,5 @@ module.exports = {
   getOrderDetails,
   fetchToplist,
   changePaymentStatus,
+  moreOrderDetails
 };
