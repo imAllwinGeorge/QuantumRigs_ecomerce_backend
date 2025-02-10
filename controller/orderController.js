@@ -34,8 +34,36 @@ const orderProducts = async (req, res) => {
     console.log("quantity managment", verifyQuantity);
     for (const item of verifyQuantity) {
       if (item.quantity > item.actualQuantity.quantity) {
-        return res.status(409).json({ message: "quantity missmatch" });
+        return res.status(409).json({ message: `only ${item.actualQuantity.quantity} product is available` });
       }
+    }
+
+    if(paymentMethod === "wallet"){
+      
+      const wallet = await Wallet.findOne({userId:userId});
+      
+      if(!wallet){
+        return res.status(400).json({message:"wallet not found"})
+      }
+
+      const walletAmount = wallet?.transactionDetails.reduce((acc,curr)=>{
+        if(curr.type === "credit"){
+          acc+=curr.amount
+        }
+        return acc
+      },[0])
+      
+      if(walletAmount < totalAmount){
+        return res.status(402).json({message:"insuffient balanceInsufficient wallet balance. Please add funds."})
+      }
+      let details = {
+        type: "debit",
+        amount: totalAmount - discount,
+        description: "purchased a product using wallet",
+      };
+
+      wallet.transactionDetails.push(details);
+      await wallet.save();
     }
 
     let orderProduct = await Order.create({
@@ -52,14 +80,6 @@ const orderProducts = async (req, res) => {
     if (!orderProduct) {
       return res.status(403).json("product cannot be ordered");
     }
-    const manageQuantity = items.map(async (item) => {
-      const updateQuantity = await Variant.findByIdAndUpdate(
-        item?.variantId,
-        { $inc: { quantity: -item?.quantity } },
-        { new: true }
-      );
-      console.log(updateQuantity, "wwwwwww");
-    });
     const cartRemove = await Cart.findOneAndUpdate(
       { userId },
       { items: [] },
@@ -76,14 +96,7 @@ const orderProducts = async (req, res) => {
       createdAt: orderProduct.createdAt,
       items: await Promise.all(
         orderProduct?.items.map(async (item) => {
-          // const products = await Product.findById(
-          //   item.productId,
-          //   "productName aciteOffer aciteOfferType"
-          // ).populate("subCategoryId", "subCategory").populate("brandId","brand");
-          // item.productId = products
-
-          // return { ...item,productId : products };
-
+        
           return {
             ...item.toObject(),
             productId: await Product.findById(
@@ -96,8 +109,7 @@ const orderProducts = async (req, res) => {
         })
       ),
     };
-    console.log("mmmmmmmmmmmmmmmmmmnnnnnnnnnn", orderProduct);
-    console.log("lllllllllllllllllllllllllllll", orderedProducts);
+   
 
     res
       .status(200)
@@ -536,6 +548,25 @@ const moreOrderDetails =  async (req, res) => {
   }
 }
 
+const quantityManagement = async (req, res) => {
+  try {
+    console.log(req.body)
+    const {orderDetails} = req.body;
+    console.log("orderDetails for quanitity management",orderDetails.items)
+    const manageQuantity = await Promise.all(orderDetails.items.map(async (item) => {
+      const updateQuantity = await Variant.findByIdAndUpdate(
+        item?.variantId,
+        { $inc: { quantity: -item?.quantity } },
+        { new: true }
+      )
+      console.log(updateQuantity, "wwwwwww");
+    }))
+  } catch (error) {
+    console.log("quantity management" ,error);
+    res.status(500).json({message:"something went wrong"})
+  }
+}
+
 module.exports = {
   orderProducts,
   fetchOrderDetails,
@@ -547,5 +578,6 @@ module.exports = {
   getOrderDetails,
   fetchToplist,
   changePaymentStatus,
-  moreOrderDetails
+  moreOrderDetails,
+  quantityManagement
 };
