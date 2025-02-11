@@ -85,6 +85,8 @@ route.get("/more-orderDetails/:orderId",orderController.moreOrderDetails);
 
 route.put("/quantity-management",orderController.quantityManagement);
 
+route.post("/wallet/add-money",walletController.addMoney);
+
 route.get('/userlogout',userController.logout);
 
 

@@ -17,4 +17,36 @@ const getWalletHistory = async(req,res)=>{
     }
 }
 
-module.exports = {getWalletHistory}
+const addMoney = async (req,res) => {
+    try {
+        const {amount,userId} = req.body;
+        const wallet = await Wallet.findOne({userId});
+        if (!wallet) {
+            await Wallet.create({
+              userId,
+              transactionDetails: [
+                {
+                  type: "credit",
+                  amount,
+                  description: `wallet recharge`,
+                },
+              ],
+            });
+          } else {
+            let details = {
+              type: "credit",
+              amount,
+              description: `wallet recharge`,
+            };
+  
+            wallet.transactionDetails.push(details);
+            await wallet.save();
+          }
+          res.status(200).json({message:"wallet recharged"})
+    } catch (error) {
+        console.log("addmoney to wallet",error);
+        res.status(500).json({message:"something went wrong"})
+    }
+}
+
+module.exports = {getWalletHistory, addMoney}

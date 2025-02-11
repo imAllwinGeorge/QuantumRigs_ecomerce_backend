@@ -157,6 +157,7 @@ const fetchOrderDetails = async (req, res) => {
         return {
           productId: product,
           variantId: variant,
+          purchasedAmount: item?.product?.price,
           quantity: item?.product?.quantity,
           status: item?.product?.status,
           message: item?.product?.message,
@@ -330,7 +331,7 @@ const getOrders = async (req, res) => {
       })
     );
     const allOrders = orders.flat();
-    // console.log(allOrders[0]);
+    // console.log("all orders for admin orders",allOrders[0]);
 
     const productDetails = await Promise.all(
       allOrders.map(async (item) => {
@@ -341,6 +342,7 @@ const getOrders = async (req, res) => {
         return {
           productId: product,
           variantId: variant,
+          purchasedAmount: item?.product?.price,
           quantity: item?.product?.quantity,
           status: item?.product?.status,
           message: item?.product?.message,
