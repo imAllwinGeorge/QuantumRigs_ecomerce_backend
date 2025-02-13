@@ -47,10 +47,9 @@ const sendVarificationEmail = async(email,otp)=>{
     }
 }
 
-
 const signup = async(req,res) =>{
     try {
-        const {email,password,phone,firstName,lastName,userName} = req.body
+        const {email,password,phone,firstName,lastName,userName,refferalCode} = req.body
 
         const isExist = await User.findOne({email:{$regex: new RegExp(`^${email}$`,'i')} })
         if(isExist){
@@ -64,7 +63,7 @@ const signup = async(req,res) =>{
             }
             console.log(otp)
             req.session.userOtp = otp;
-            req.session.userData = {email,password,phone,firstName,lastName,userName}
+            req.session.userData = {email,password,phone,firstName,lastName,userName,refferalCode}
             res.status(200).json('otp verification needed')
            
         }

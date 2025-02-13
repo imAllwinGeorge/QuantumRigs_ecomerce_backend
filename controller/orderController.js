@@ -7,6 +7,7 @@ const User = require("../model/userSchema");
 const Variant = require("../model/variantModel");
 const Wallet = require("../model/walletModel");
 const SubCategory = require("../model/subCategories");
+const Refferal = require("../model/RefferalModel");
 require("dotenv").config();
 
 const orderProducts = async (req, res) => {
@@ -19,6 +20,7 @@ const orderProducts = async (req, res) => {
       shippingAddress,
       couponDetails,
       discount,
+      deliveryCharge,
       originalAmount,
       items,
     } = req.body;
@@ -34,27 +36,42 @@ const orderProducts = async (req, res) => {
     console.log("quantity managment", verifyQuantity);
     for (const item of verifyQuantity) {
       if (item.quantity > item.actualQuantity.quantity) {
-        return res.status(409).json({ message: `only ${item.actualQuantity.quantity} product is available` });
+        return res
+          .status(409)
+          .json({
+            message: `only ${item.actualQuantity.quantity} product is available`,
+          });
       }
     }
 
-    if(paymentMethod === "wallet"){
-      
-      const wallet = await Wallet.findOne({userId:userId});
-      
-      if(!wallet){
-        return res.status(400).json({message:"wallet not found"})
+    if (paymentMethod === "wallet") {
+      const wallet = await Wallet.findOne({ userId: userId });
+
+      if (!wallet) {
+        return res.status(400).json({ message: "wallet not found" });
       }
 
-      const walletAmount = wallet?.transactionDetails.reduce((acc,curr)=>{
-        if(curr.type === "credit"){
-          acc+=curr.amount
-        }
-        return acc
-      },[0])
-      
-      if(walletAmount < totalAmount){
-        return res.status(402).json({message:"insuffient balanceInsufficient wallet balance. Please add funds."})
+      const walletAmount = wallet?.transactionDetails.reduce(
+        ([cred, deb], curr) => {
+          if (curr.type === "credit") {
+            cred += curr.amount;
+          } else {
+            deb += curr.amount;
+          }
+          return [cred, deb];
+        },
+        [0, 0]
+      );
+
+      const walletBalance = walletAmount[0] - walletAmount[1];
+
+      if (walletBalance < totalAmount) {
+        return res
+          .status(402)
+          .json({
+            message:
+              "insuffient balanceInsufficient wallet balance. Please add funds.",
+          });
       }
       let details = {
         type: "debit",
@@ -74,11 +91,57 @@ const orderProducts = async (req, res) => {
       totalAmount,
       couponDetails,
       discount,
+      deliveryCharge,
       originalAmount,
       items,
     });
     if (!orderProduct) {
       return res.status(403).json("product cannot be ordered");
+    }
+
+    const order = await Order.find({ userId });
+    const user = await User.findById(userId);
+    console.log("refferal offer implementing", user, order);
+    if (order.length === 1 && user.refferedBy) {
+      const result = await Refferal.findOneAndUpdate(
+        { userId: user.refferedBy, "users.user": userId },
+        { $set: { "users.$.status": "success" } },
+        { new: true }
+      );
+
+      const wallet = await Wallet.findOne({ userId });
+      console.log("refferal offer adding", wallet);
+      const transaction = {
+        type: "credit",
+        amount: 100,
+        description: "user refference complete successfully",
+      };
+      if (!wallet) {
+        await Wallet.create({
+          userId,
+          transactionDetails: [transaction],
+        });
+      } else {
+        wallet.transactionDetails.push(transaction);
+        await wallet.save();
+      }
+      const refferedUserWallet = await Wallet.findOne({
+        userId: user.refferedBy,
+      });
+      const reffererTransaction = {
+        type: "credit",
+        amount: 500,
+        description: "user refference complete successfully",
+      };
+      if (!refferedUserWallet) {
+        await Wallet.create({
+          userId: user.refferedBy,
+          transactionDetails: [reffererTransaction],
+        });
+      } else {
+        refferedUserWallet.transactionDetails.push(reffererTransaction);
+        await refferedUserWallet.save();
+      }
     }
     const cartRemove = await Cart.findOneAndUpdate(
       { userId },
@@ -91,12 +154,12 @@ const orderProducts = async (req, res) => {
       totalAmount: orderProduct.totalAmount,
       couponDetails: orderProduct.couponDetails,
       discount: orderProduct.discount,
+      deliveryCharge: orderProduct.deliveryCharge,
       originalAmount: orderProduct.originalAmount,
       _id: orderProduct._id,
       createdAt: orderProduct.createdAt,
       items: await Promise.all(
         orderProduct?.items.map(async (item) => {
-        
           return {
             ...item.toObject(),
             productId: await Product.findById(
@@ -109,7 +172,6 @@ const orderProducts = async (req, res) => {
         })
       ),
     };
-   
 
     res
       .status(200)
@@ -141,6 +203,7 @@ const fetchOrderDetails = async (req, res) => {
             totalAmount: item?.totalAmount,
             couponDetails: item?.couponDetails,
             discount: item?.discount,
+            deliveryCharge: item?.deliveryCharge,
             originalAmount: item?.originalAmount,
             orderDate: item?.createdAt,
           };
@@ -169,6 +232,7 @@ const fetchOrderDetails = async (req, res) => {
           totalAmount: item?.totalAmount,
           couponDetails: item?.couponDetails,
           discount: item?.discount,
+          deliveryCharge: item?.deliveryCharge,
           originalAmount: item?.originalAmount,
           orderDate: item?.orderDate,
         };
@@ -324,6 +388,7 @@ const getOrders = async (req, res) => {
             paymentStatus: item?.paymentStatus,
             _id: item?._id,
             discount: item?.discount,
+            deliveryCharge: item?.deliveryCharge,
             totalAmount: item?.totalAmount,
             couponDetails: item?.couponDetails,
           };
@@ -353,6 +418,7 @@ const getOrders = async (req, res) => {
           orderId: item?._id,
           productOrderId: item?.product?._id,
           discount: item?.discount,
+          deliveryCharge: item?.deliveryCharge,
           totalAmount: item?.totalAmount,
           couponDetails: item?.couponDetails,
         };
@@ -410,13 +476,15 @@ const razorpayCreateOrder = async (req, res) => {
 
   try {
     const order = await razorpayInstance.orders.create({
-      amount: amount * 100, // Amount in paisa
+      amount: parseInt(amount * 100), // Amount in paisa
       currency,
       receipt,
     });
+    console.log("razorpay create order api",order)
     res.status(201).json({ success: true, order });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.log(error)
+    res.status(500).json({ success: false, message:"order cannot be created please try again" });
   }
 };
 
@@ -526,48 +594,52 @@ const changePaymentStatus = async (req, res) => {
   }
 };
 
-const moreOrderDetails =  async (req, res) => {
+const moreOrderDetails = async (req, res) => {
   try {
-    const {orderId} = req.params;
+    const { orderId } = req.params;
     const order = await Order.findById(orderId);
-   let details = await Promise.all(order.items.map(async(item)=>{
-    const product = await Product.findById(item.productId,"productName").populate("brandId","brand");
-    const variant = await Variant.findById(item.variantId,"attributes salePrice");
-    console.log("moreproduct details dertails",product,variant)
-    return{...item.toObject(),
-     productId: product,
-     variantId: variant
-      
-    }
-   }
-   
-  ))
-    console.log("more order details",details)
-    return res.status(200).json({details,message:"more order details"})
+    let details = await Promise.all(
+      order.items.map(async (item) => {
+        const product = await Product.findById(
+          item.productId,
+          "productName"
+        ).populate("brandId", "brand");
+        const variant = await Variant.findById(
+          item.variantId,
+          "attributes salePrice"
+        );
+        console.log("moreproduct details dertails", product, variant);
+        return { ...item.toObject(), productId: product, variantId: variant };
+      })
+    );
+    console.log("more order details", details);
+    return res.status(200).json({ details, message: "more order details" });
   } catch (error) {
-    console.log("moreOrder details",error.message);
-    res.status(500).json({message:"something went wrong"});
+    console.log("moreOrder details", error.message);
+    res.status(500).json({ message: "something went wrong" });
   }
-}
+};
 
 const quantityManagement = async (req, res) => {
   try {
-    console.log(req.body)
-    const {orderDetails} = req.body;
-    console.log("orderDetails for quanitity management",orderDetails.items)
-    const manageQuantity = await Promise.all(orderDetails.items.map(async (item) => {
-      const updateQuantity = await Variant.findByIdAndUpdate(
-        item?.variantId,
-        { $inc: { quantity: -item?.quantity } },
-        { new: true }
-      )
-      console.log(updateQuantity, "wwwwwww");
-    }))
+    console.log(req.body);
+    const { orderDetails } = req.body;
+    console.log("orderDetails for quanitity management", orderDetails.items);
+    const manageQuantity = await Promise.all(
+      orderDetails.items.map(async (item) => {
+        const updateQuantity = await Variant.findByIdAndUpdate(
+          item?.variantId,
+          { $inc: { quantity: -item?.quantity } },
+          { new: true }
+        );
+        console.log(updateQuantity, "wwwwwww");
+      })
+    );
   } catch (error) {
-    console.log("quantity management" ,error);
-    res.status(500).json({message:"something went wrong"})
+    console.log("quantity management", error);
+    res.status(500).json({ message: "something went wrong" });
   }
-}
+};
 
 module.exports = {
   orderProducts,
@@ -581,5 +653,5 @@ module.exports = {
   fetchToplist,
   changePaymentStatus,
   moreOrderDetails,
-  quantityManagement
+  quantityManagement,
 };

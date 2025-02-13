@@ -377,8 +377,6 @@ const returnProduct = async (req, res) => {
 
 const categoryFetch = async (req, res) => {
   try {
-   
-
     const products = await Product.aggregate([
       {
         $lookup: {
@@ -418,6 +416,23 @@ const categoryFetch = async (req, res) => {
   }
 };
 
+const toggleBrandList = async (req, res) => {
+  try {
+    const { brandId } = req.params;
+    console.log("brandId for toggle listing");
+    const brand = await Brand.findByIdAndUpdate(
+      brandId,
+      [{ $set: { isListed: { $not: "$isListed" } } }],
+      { new: true }
+    );
+    console.log("toggled brand", brand);
+    res.status(200).json({ brand, message: "status changed" });
+  } catch (error) {
+    console.log("toggle brand listing", error);
+    res.status(500).json({ message: "something went wrong" });
+  }
+};
+
 module.exports = {
   getProductPage,
   addProduct,
@@ -431,4 +446,5 @@ module.exports = {
   updateVariant,
   returnProduct,
   categoryFetch,
+  toggleBrandList,
 };

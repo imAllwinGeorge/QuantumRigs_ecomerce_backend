@@ -41,7 +41,9 @@ route.post('/addvariant',salePriceMiddleWare.findSalePrice,productController.add
 
 route.post('/addproduct', upload.array('images', 3),productController.addProduct)
 
-route.get('/brands',productController.fetchBrands)
+route.get('/brands',productController.fetchBrands);
+
+route.patch("/brand/toggle-list/:brandId",productController.toggleBrandList)
 
 route.post('/addbrands',productController.AddBrands)
 

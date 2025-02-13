@@ -91,6 +91,10 @@ const orderSchema = new Schema({
     originalAmount:{
         type:Number,
         required:true,
+    },
+    deliveryCharge:{
+        type:Number,
+        required:true
     }
     
 })

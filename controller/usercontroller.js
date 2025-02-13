@@ -7,6 +7,7 @@ const Product = require("../model/productModel");
 const Variant = require("../model/variantModel");
 const Brand = require("../model/brandModel");
 const Address = require("../model/addressModel");
+const Refferal = require("../model/RefferalModel");
 require("dotenv").config();
 const secretKey = process.env.JWT_SCRET;
 
@@ -15,23 +16,51 @@ const signup = async (req, res) => {
   try {
     const { otp } = req.body;
     const { userOtp } = req.session;
-    const { firstName, lastName, email, password, phone } =
+    const { firstName, lastName, email, password, phone,refferalCode } =
       req.session.userData;
+    
 
     if (password && otp == userOtp) {
       const hashedPassword = await bcrypt.hash(password, saltRound);
+      let user 
+      if(refferalCode .length === 24){
+        user = await User.create({
+          firstName,
+          lastName,
+          userName: firstName,
+          email,
+          password: hashedPassword,
+          phone,
+          refferedBy:refferalCode
+        });
+      }else{
+        user = await User.create({
+          firstName,
+          lastName,
+          userName: firstName,
+          email,
+          password: hashedPassword,
+          phone,
+        });
+      }
 
-      const user = await User.create({
-        firstName,
-        lastName,
-        userName: firstName,
-        email,
-        password: hashedPassword,
-        phone,
-      });
-
-      // await user.save();
-      console.log("user signup ",user)
+      
+      
+      if(refferalCode.length ===24){
+        const refferals = await Refferal.findOne({userId:user._id})
+      if(!refferals){
+        await Refferal.create({
+          userId:refferalCode,
+          users:{
+            user:user._id,
+            email
+          }
+        })
+      } else{
+        refferals?.users.push({user:user._id,email})
+        await refferals.save();
+    }
+      }
 
       const token = await jwt.sign({ _id: user._id }, secretKey, {
         expiresIn: "30d",

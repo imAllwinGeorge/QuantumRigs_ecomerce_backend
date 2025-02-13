@@ -41,6 +41,11 @@ const userSchema = new Schema({
         type:String,
         default:null,
 
+    },
+    refferedBy:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"User",
+        required:false,
     }
 })
 
