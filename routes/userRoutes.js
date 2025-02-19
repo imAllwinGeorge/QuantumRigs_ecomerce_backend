@@ -31,6 +31,8 @@ route.put('/change-password',userController.changePassword);
 
 route.get('/home',userController.home);
 
+route.post("/product/search",productController.searchProducts)
+
 route.get('/product/:productId',userController.productDescription);
 
 route.get('/fetch_user/:userId',userController.fetchUser);
@@ -58,6 +60,8 @@ route.delete('/remove-item/:productId/:variantId/:userId',cartContorller.removeP
 route.post('/order-product',orderController.orderProducts);
 
 route.get('/fetch-order-details/:userId',orderController.fetchOrderDetails);
+
+route.get("/order-details/:orderId",orderController.orderDetails)
 
 route.patch('/cancel-product',orderController.cancelProduct);
 

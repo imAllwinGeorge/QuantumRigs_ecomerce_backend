@@ -62,7 +62,7 @@ const orderProducts = async (req, res) => {
         },
         [0, 0]
       );
-
+      console.log("check weathe wallet amount calculation",walletAmount)
       const walletBalance = walletAmount[0] - walletAmount[1];
 
       if (walletBalance < totalAmount) {
@@ -75,7 +75,7 @@ const orderProducts = async (req, res) => {
       }
       let details = {
         type: "debit",
-        amount: totalAmount - discount,
+        amount: totalAmount,
         description: "purchased a product using wallet",
       };
 
@@ -275,7 +275,7 @@ const cancelProduct = async (req, res) => {
       cancelOrder.totalAmount - totalAmount + cancelOrder.discount <
       cancelOrder.couponDetails.minPurchaseAmmount
     ) {
-      if (paymentMethod === "online") {
+      if (paymentMethod === "online" || paymentMethod === "wallet") {
         const wallet = await Wallet.findOne({ userId });
         if (!wallet) {
           await Wallet.create({
@@ -320,7 +320,7 @@ const cancelProduct = async (req, res) => {
         totalAmount: cancelOrder.totalAmount - totalAmount,
       };
 
-      if (paymentMethod === "online") {
+      if (paymentMethod === "online" || paymentMethode === "wallet") {
         const wallet = await Wallet.findOne({ userId });
         if (!wallet) {
           await Wallet.create({
@@ -641,6 +641,29 @@ const quantityManagement = async (req, res) => {
   }
 };
 
+const orderDetails = async (req,res) => {
+  try {
+    const {orderId} = req.params
+    console.log(orderId)
+    const order = await Order.findById(orderId);
+    const productDetails  = await Promise.all(
+      order?.items.map(async(item)=>{
+        const product = await Product.findById(item?.productId).populate("brandId","brand")
+        const variant = await Variant.findById(item?.variantId)
+        
+        return {productId:product,variantId:variant,quantity:item?.quantity,status:item?.status,price:item?.price}
+      })
+    )
+    
+    const fetchedOrder ={...order.toObject(),items : productDetails}
+    // console.log("orderDetails",order)
+    res.status(200).json({fetchedOrder,message:"order fetched"})
+  } catch (error) {
+    console.log("get orderDetails",error);
+    res.status(500).json({message:"something went wrong, please try again"})
+  }
+}
+
 module.exports = {
   orderProducts,
   fetchOrderDetails,
@@ -654,4 +677,5 @@ module.exports = {
   changePaymentStatus,
   moreOrderDetails,
   quantityManagement,
+  orderDetails
 };

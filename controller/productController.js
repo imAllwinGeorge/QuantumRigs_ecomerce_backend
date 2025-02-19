@@ -23,6 +23,48 @@ const getProductPage = async (req, res) => {
   }
 };
 
+const searchProducts = async (req, res)=>{
+  try {
+    const {searchTerm1,priceRange,filters,sorts,brands} = req.body;
+    let filteredProducts 
+    if(searchTerm1){
+      const regex = new RegExp(searchTerm1, 'i');
+    const products = await Product.find({productName:regex})
+    const productDetails = await Promise.all(
+      products.map(async(item)=>{
+        const variants = await Variant.find({productId:item._id})
+        return {...item.toObject(),variants:variants}
+      })
+    )
+    filteredProducts = [...productDetails]
+    // if(priceRange){
+    //   filteredProducts = filteredProducts.filter((product)=>{
+    //     const salePrice = product.variants?.[0]?.salePrice
+    //     return salePrice !== "undefined" && salePrice >= priceRange.min && salePrice <= priceRange.max 
+    //   })
+    // }
+    }else {
+     
+      const productDetails = await Product.aggregate([
+        {
+          $lookup: {
+            from: "varients",
+            localField: "_id",
+            foreignField: "productId",
+            as: "variants",
+          },
+        },
+      ]);
+      
+      filteredProducts = [...productDetails]
+    }
+    res.status(200).json({filteredProducts})
+  } catch (error) {
+    console.log("search products",error);
+    res.status(500).json({message:"something went wrong"})
+  }
+}
+
 const getProductDetails = async (req, res) => {
   try {
     const product = await Product.find();
@@ -447,4 +489,5 @@ module.exports = {
   returnProduct,
   categoryFetch,
   toggleBrandList,
+  searchProducts
 };
