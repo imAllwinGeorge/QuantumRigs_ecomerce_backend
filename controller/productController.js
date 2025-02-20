@@ -193,6 +193,7 @@ const AddBrands = async (req, res) => {
     return res.status(404).json("brand already exist");
   } catch (error) {
     console.log("addbrands", error);
+    res.status(500).json({message:"something went wrong, please try again!"})
   }
 };
 
@@ -277,6 +278,7 @@ const editProduct = async (req, res) => {
     return res.status(404).json("prduct doesnot found");
   } catch (error) {
     console.log("edit product", error);
+    res.status(500).json({message:"internal server error"})
   }
 };
 

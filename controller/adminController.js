@@ -240,6 +240,7 @@ const editCategory = async (req, res) => {
     return res.status(404).json("something went wrong");
   } catch (error) {
     console.log("editCategory", error);
+    res.status(500).json("internal sever error")
   }
 };
 

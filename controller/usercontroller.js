@@ -16,14 +16,13 @@ const signup = async (req, res) => {
   try {
     const { otp } = req.body;
     const { userOtp } = req.session;
-    const { firstName, lastName, email, password, phone,refferalCode } =
+    const { firstName, lastName, email, password, phone, refferalCode } =
       req.session.userData;
-    
 
     if (password && otp == userOtp) {
       const hashedPassword = await bcrypt.hash(password, saltRound);
-      let user 
-      if(refferalCode .length === 24){
+      let user;
+      if (refferalCode.length === 24) {
         user = await User.create({
           firstName,
           lastName,
@@ -31,9 +30,9 @@ const signup = async (req, res) => {
           email,
           password: hashedPassword,
           phone,
-          refferedBy:refferalCode
+          refferedBy: refferalCode,
         });
-      }else{
+      } else {
         user = await User.create({
           firstName,
           lastName,
@@ -44,22 +43,20 @@ const signup = async (req, res) => {
         });
       }
 
-      
-      
-      if(refferalCode.length ===24){
-        const refferals = await Refferal.findOne({userId:user._id})
-      if(!refferals){
-        await Refferal.create({
-          userId:refferalCode,
-          users:{
-            user:user._id,
-            email
-          }
-        })
-      } else{
-        refferals?.users.push({user:user._id,email})
-        await refferals.save();
-    }
+      if (refferalCode.length === 24) {
+        const refferals = await Refferal.findOne({ userId: user._id });
+        if (!refferals) {
+          await Refferal.create({
+            userId: refferalCode,
+            users: {
+              user: user._id,
+              email,
+            },
+          });
+        } else {
+          refferals?.users.push({ user: user._id, email });
+          await refferals.save();
+        }
       }
 
       const token = await jwt.sign({ _id: user._id }, secretKey, {
@@ -68,7 +65,7 @@ const signup = async (req, res) => {
       res.cookie("user_token", token, {
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        secure:  process.env.NODE_ENV === "production", // Set to true in production with HTTPS
+        secure: process.env.NODE_ENV === "production", // Set to true in production with HTTPS
         sameSite: "lax",
       });
 
@@ -92,7 +89,7 @@ const signup = async (req, res) => {
 
 const googleSignUp = async (req, res) => {
   try {
-    console.log(req.body);
+    console.log("hello googlesignup",req.body);
     const { firstName, lastName, userName, email, googleId } = req.body;
 
     const isExist = await User.findOne({ email });
@@ -106,10 +103,15 @@ const googleSignUp = async (req, res) => {
         secure: false,
         sameSite: "lax",
       });
-      return res.status(200).json(googleId);
+      return res.status(200).json({message:"login success full",
+        id:isExist._id,
+        name:isExist.firstName,
+        email:isExist.email,
+        phone:isExist.phone
+      });
     }
 
-    await User.create({
+    const newUser = await User.create({
       firstName,
       lastName,
       userName,
@@ -117,7 +119,7 @@ const googleSignUp = async (req, res) => {
       googleId,
     });
 
-    const token = await jwt.sign({ _id: googleId }, secretKey, {
+    const token = await jwt.sign({ _id: newUser._id }, secretKey, {
       expiresIn: "30d",
     });
     res.cookie("user_token", token, {
@@ -128,10 +130,14 @@ const googleSignUp = async (req, res) => {
     });
     return res.status(201).json({
       message: "user created successfully",
-      id: req.body.googleId,
+      id: newUser._id,
+      name: newUser.firstName,
+      email: newUser.email,
+      phone:newUser.phone
     });
   } catch (error) {
     console.log("googlesignup", error);
+    res.status(500).json("google authentication failed");
   }
 };
 
@@ -155,8 +161,8 @@ const verifyToken = async (req, res) => {
 
     // Attach the decoded user info to the request object for use in subsequent middleware
     //  req.user = decoded;
-    console.log(decoded._id)
-    const user = await User.findOne( {_id: decoded._id });
+    console.log(decoded._id);
+    const user = await User.findOne({ _id: decoded._id });
     console.log("is active user", user);
     if (user.isBlocked) {
       return res
@@ -388,7 +394,7 @@ const editUser = async (req, res) => {
       { new: true }
     ).select("-password");
     console.log("updatedUser edituser", updatedUser);
-    return res.status(200).json({updatedUser,message:"user data updated"});
+    return res.status(200).json({ updatedUser, message: "user data updated" });
   } catch (error) {
     console.log(error.message);
   }
@@ -450,7 +456,7 @@ const addAddress = async (req, res) => {
 const getAddress = async (req, res) => {
   try {
     const { userId } = req.params;
-    const addresses = await Address.find({ userId,isActive:true });
+    const addresses = await Address.find({ userId, isActive: true });
     if (!addresses) {
       return res.status(404).json("address not found");
     }
@@ -469,42 +475,44 @@ const editAddress = async (req, res) => {
       { name, phone, address, pincode, city, state },
       { new: true }
     );
-    if(!updateAddress){
-      return res.status(401).json('address couldnot updated');
+    if (!updateAddress) {
+      return res.status(401).json("address couldnot updated");
     }
-  return res.status(200).json({updateAddress,message:'Address updated'})
+    return res.status(200).json({ updateAddress, message: "Address updated" });
   } catch (error) {
     console.log("edit address", error.message);
   }
 };
 
-const deleteAddress = async (req,res)=>{
+const deleteAddress = async (req, res) => {
   try {
-    
-    const {addressId} = req.params;
-    
-    const updatedAddress = await Address.findByIdAndUpdate({_id:addressId},{isActive:false});
-    
-    if(!updatedAddress){
-      return res.status(404).json('address couldnot delete')
+    const { addressId } = req.params;
+
+    const updatedAddress = await Address.findByIdAndUpdate(
+      { _id: addressId },
+      { isActive: false }
+    );
+
+    if (!updatedAddress) {
+      return res.status(404).json("address couldnot delete");
     }
-    return res.status(200).json('address deleted')
+    return res.status(200).json("address deleted");
   } catch (error) {
-    console.log('delete address',error.message)
-    res.status(500).json('some thing went wrong')
+    console.log("delete address", error.message);
+    res.status(500).json("some thing went wrong");
   }
-}
+};
 
 const logout = (req, res) => {
-  console.log("check the session",req.session);
-  console.log("what is this",req.user)
+  console.log("check the session", req.session);
+  console.log("what is this", req.user);
   if (req.user) {
     req.logOut(() => {
       console.log(req.user);
       return res.json("logout success");
     });
   } else if (req.session) {
-    console.log("enthokeya ee kochu keralathil nadakunne",req.session);
+    console.log("enthokeya ee kochu keralathil nadakunne", req.session);
     req.session.destroy(() => {
       // res.cookie("user_token","", {
       //   httpOnly: true,
