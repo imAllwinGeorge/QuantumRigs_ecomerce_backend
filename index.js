@@ -13,7 +13,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
 
 const corsOptions = {
+
     origin: ["allwingeorge.shop","www.allwingeorge.shop"], // Your frontend URL
+
     credentials: true, // Allow credentials (cookies, headers, etc.)
 };
   
@@ -32,4 +34,4 @@ app.use('/uploads', express.static('uploads'));
 app.use('/',userRoutes)
 app.use('/admin',adminRoutes)
 connectDB();
-app.listen(3000,()=>console.log("backend running at port 3000"))
+app.listen(3000,'0.0.0.0',()=>console.log("backend running at port 3000"))

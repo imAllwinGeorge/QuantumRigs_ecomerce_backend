@@ -35,6 +35,7 @@ const orderProducts = async (req, res) => {
     );
     console.log("quantity managment", verifyQuantity);
     for (const item of verifyQuantity) {
+
       if (item.quantity > item.actualQuantity.quantity || item.quantity <= 0) {
         return res
           .status(409)
