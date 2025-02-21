@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
 
 const corsOptions = {
-    origin: 'http://localhost:5173', // Your frontend URL
+    origin: ["https://allwingeorge.shop","https://www.allwingeorge.shop"], // Your frontend URL
     credentials: true, // Allow credentials (cookies, headers, etc.)
 };
   
