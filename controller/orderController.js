@@ -35,7 +35,7 @@ const orderProducts = async (req, res) => {
     );
     console.log("quantity managment", verifyQuantity);
     for (const item of verifyQuantity) {
-      if (item.quantity > item.actualQuantity.quantity || item.quantity < 0) {
+      if (item.quantity > item.actualQuantity.quantity || item.quantity <= 0) {
         return res
           .status(409)
           .json({
@@ -320,7 +320,7 @@ const cancelProduct = async (req, res) => {
         totalAmount: cancelOrder.totalAmount - totalAmount,
       };
 
-      if (paymentMethod === "online" || paymentMethode === "wallet") {
+      if (paymentMethod === "online" || paymentMethod === "wallet") {
         const wallet = await Wallet.findOne({ userId });
         if (!wallet) {
           await Wallet.create({
