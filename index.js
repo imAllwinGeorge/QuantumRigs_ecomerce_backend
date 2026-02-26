@@ -13,6 +13,7 @@ dotenv.config();
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",")
 
+app.set("trustproxy", 1)
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
