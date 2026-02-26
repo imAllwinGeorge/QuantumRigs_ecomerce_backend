@@ -7,15 +7,18 @@ const session = require('express-session')
 const cors = require('cors')
 const cookieParser = require('cookie-parser');
 const path = require('path')
+const dotenv = require('dotenv');
+dotenv.config();
+
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",")
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
 
 const corsOptions = {
-
-    origin: ["allwingeorge.shop","www.allwingeorge.shop"], // Your frontend URL
-
+    origin: allowedOrigins,
     credentials: true, // Allow credentials (cookies, headers, etc.)
 };
   

@@ -484,7 +484,7 @@ const razorpayCreateOrder = async (req, res) => {
     console.log("razorpay create order api",order)
     res.status(201).json({ success: true, order });
   } catch (error) {
-    console.log(error)
+    console.log(" razorpay create Order error: ", error)
     res.status(500).json({ success: false, message:"order cannot be created please try again" });
   }
 };
