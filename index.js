@@ -12,8 +12,8 @@ dotenv.config();
 
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",")
-
-app.set("trustproxy", 1)
+console.log("allowed origins: ", allowedOrigins)
+app.set("trust proxy", 1)
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
@@ -34,7 +34,9 @@ app.use(session({
 app.use('/uploads', express.static(path.join(__dirname, 'multer', 'uploads')));
 app.use('/uploads', express.static('uploads'));
 
-
+app.get("/test", (req, res) => {
+    res.status(200).json({message: "success"});
+})
 app.use('/',userRoutes)
 app.use('/admin',adminRoutes)
 connectDB();
